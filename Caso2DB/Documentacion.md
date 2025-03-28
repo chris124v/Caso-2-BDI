@@ -3,6 +3,7 @@
 ### Inetegrantes 
 
 ##### Entidades SocaiUsers 
+Barquero
 1. Users
 2. Roles
 3. Permissions
@@ -15,24 +16,31 @@
 10. Provinces
 11. Cities
 12. Address
-13. Transactions
-14. TransactionTypes
-15. TransactionSubTypes
-16. CurrencyTypes
-17. CurrencyExchange
-18. Payments
-19. PaymentMethods
-20. DataPayment
-21. Log
-22. LogSources
-23. LogSeverities
-24. LogTypes
-25. Schedules
-26. ScheduleDetails
-27. SuscriptionSchedule
-28. Validation
-29. Balance
-30. BalanceTypes
-31. BalancePerPerson
-32. Files
-33. FilesTypes
+
+
+Chris
+14. Transactions
+15. TransactionTypes
+16. TransactionSubTypes
+17. CurrencyTypes
+18. CurrencyExchange
+19. Payments
+20. PaymentMethods
+21. DataPayment
+4. Files
+35. FilesTypes
+
+
+Santi 
+25. LogSeverities
+26. LogTypes
+27. Schedules
+28. ScheduleDetails
+29. SuscriptionSchedule
+30. Validation
+31. Balance
+32. BalanceTypes
+33. BalancePerPerson
+22. Log
+23. LogSources
+
