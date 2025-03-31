@@ -19,28 +19,28 @@ Barquero
 
 
 Chris
-14. Transactions
-15. TransactionTypes
-16. TransactionSubTypes
-17. CurrencyTypes
-18. CurrencyExchange
-19. Payments
-20. PaymentMethods
-21. DataPayment
-4. Files
-35. FilesTypes
+1. Transactions
+2. TransactionTypes
+3. TransactionSubTypes
+4. CurrencyTypes /
+5. CurrencyExchange /
+6. Payments /
+7. PaymentMethods / 
+8. DataPayment /
+9. Files /
+10. FilesTypes /
 
 
 Santi 
-25. LogSeverities
-26. LogTypes
-27. Schedules
-28. ScheduleDetails
-29. SuscriptionSchedule
-30. Validation
-31. Balance
-32. BalanceTypes
-33. BalancePerPerson
-22. Log
-23. LogSources
+1. LogSeverities
+2. LogTypes
+3. Schedules
+4. ScheduleDetails
+5. SuscriptionSchedule
+6. Validation
+7. Balance
+8. BalanceTypes
+9. BalancePerPerson
+10. Log
+11. LogSources
 
