@@ -42,7 +42,7 @@ En el siguiente apartado se definen las entidades del modelo, importante mencion
     2. PaymentMethods
     3. ResultPaymenrt 
 10. Files
-    1.FileTypes
+    1. FileTypes
 11. Logs
     1. LogTypes
     2. LogSources
@@ -53,9 +53,12 @@ En el siguiente apartado se definen las entidades del modelo, importante mencion
 13. ValidationQR
 14. Balance
     1. BalanceTypes
-    2.  BalancePerPerson
+    2. BalancePerPerson
 
 ### 1.2 Tecnologias
 * MongoDB
 * SQL Server Management Studio Developer
+
+## 2. Diagrama Entidad-Relacion
+
 
