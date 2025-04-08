@@ -61,4 +61,4 @@ En el siguiente apartado se definen las entidades del modelo, importante mencion
 
 ## 2. Diagrama Entidad-Relacion
 
-![Diagrama ER del Sistema Soltura](./docs/images/ModeloCasiFinal.png)
+![Diagrama ER del Sistema Soltura](Caso2DB/img/ModeloFisicoCasiFinal.png)
