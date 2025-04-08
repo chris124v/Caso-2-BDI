@@ -1,46 +1,61 @@
-##### Caso 2 Bases de Datos 
+# Caso 2 Base de Datos Soltura
 
-### Inetegrantes 
+### Integrantes
+* Santiago Calderón Zúñiga 
+* Adrián Josué Barquero Sánchez
+* Christopher Daniel Vargas Villalta
 
-##### Entidades SocaiUsers 
-Barquero
-1. Users /
-2. Roles /
-3. Permissions /
-4. Suscriptions /
-5. PlanFeatures /
-6. FeaturesPerPlan /
-7. SuscriptionPrices
-8. Comerces /
-9. ComercesPersonalization
-10. Provinces /
-11. Cities /
-12. Address /
+## 1. Introduccion
+Este documento tiene el objetivo de explicar las relaciones y el modelo en general de la base de datos de la Empresa Soltura y sus diferentes gestiones. En esta documentacion explicaremos y detallaremos las relaciones entre las tablas y los objetivos que cumplen para maximizar la eficiencia de soltura y que propiamente tenga un buen funcionamiento. 
 
+### 1.1 Entidades "Socai"
+En el siguiente apartado se definen las entidades del modelo, importante mencionar que cada tabla en el diseno tiene un prefijo llamado "Socai", una combinacion entre las palabras "Soltura" y "Caipirinha". 
 
-Chris
-1. Transactions /
-2. TransactionTypes /
-3. TransactionSubTypes /
-4. CurrencyTypes /
-5. CurrencyExchange /
-6. Payments /
-7. PaymentMethods / 
-8. DataPayment /
-9. Files /
-10. FilesTypes /
+1. Users
+2. Roles
+   1. UserRoles
+3. Permissions
+   1. RolePermissions
+4. Subscriptions
+   1. SubscirptionUser
+   2. PlanFeatures
+   3. FeaturesSubscriptions
+5. Commerces
+    1. CommercesFeatures
+    2. Renewals
+    3. ContractCommerces
+    4. ContractObligations
+    5. CommerceSettlement
+    6. CommerceSettlementDetail
+    7. CommerceBalance
+6. Countries
+    1. Provinces
+    2. Cities
+    3. Addresses
+7. Transactions
+    1. TransactionTypes
+    2. TransactionSubTypes
+8. CurrencyTypes
+    1. CurrencyExchange
+9. Payments
+    1. DataPayments
+    2. PaymentMethods
+    3. ResultPaymenrt 
+10. Files
+    1.FileTypes
+11. Logs
+    1. LogTypes
+    2. LogSources
+    3. LogSeverities
+12. Schedules
+    1. ScheduleDetails
+    2. SubscriptionSchedule
+13. ValidationQR
+14. Balance
+    1. BalanceTypes
+    2.  BalancePerPerson
 
-
-Santi 
-1. LogSeverities /
-2. LogTypes /
-3. Schedules /
-4. ScheduleDetails /
-5. SuscriptionSchedule /
-6. Validation /
-7. Balance /
-8. BalanceTypes /
-9. BalancePerPerson /
-10. Log /
-11. LogSources /
+### 1.2 Tecnologias
+* MongoDB
+* SQL Server Management Studio Developer
 
