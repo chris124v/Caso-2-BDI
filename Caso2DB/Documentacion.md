@@ -55,6 +55,7 @@ En el siguiente apartado se definen las entidades del modelo, importante mencion
     1. ScheduleDetails
     2. SubscriptionSchedule
 13. ValidationQR
+    1. ValidationTypes
 14. Balance
     1. BalanceTypes
     2. BalancePerPerson
