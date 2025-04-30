@@ -66,7 +66,7 @@ En el siguiente apartado se definen las entidades del modelo, importante mencion
 
 ## 2. Diagrama Entidad-Relacion
 
-![Diagrama ER del Sistema Soltura](/Caso2DB/img/ModeloFisicoCasiFinal.png)
+![Diagrama ER del Sistema Soltura](/Caso2DB/img/ModeloCorreccion.png)
 
 ## 3. Grupos Funcionales de la Base de Datos 
 En este apartado mencionaremos los grupos funcionales en que se divide la base de datos, esto para tener mejor esquematizado el orden de accion y como se da el flujo de datos en Soltura.
