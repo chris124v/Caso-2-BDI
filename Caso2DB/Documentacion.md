@@ -48,13 +48,13 @@ En el siguiente apartado se definen las entidades del modelo, importante mencion
     3. ResultPayment ✓
 10. Files ✓
     1. FileTypes ✓
-11. Logs
-    1. LogTypes
-    2. LogSources
-    3. LogSeverities
-12. Schedules
-    1. ScheduleDetails
-    2. SubscriptionSchedule
+11. Logs ✓
+    1. LogTypes ✓
+    2. LogSources ✓
+    3. LogSeverities ✓
+12. Schedules ✓
+    1. ScheduleDetails ✓
+    2. SubscriptionSchedule ✓
 13. ValidationQR ✓
     1. ValidationTypes ✓
 14. Balance ✓
@@ -83,7 +83,7 @@ En este apartado mencionaremos los grupos funcionales en que se divide la base d
 En este apartado se explicaran las tablas de cada uno de los grupos funcionales, describiendo su funcionamiento y como operan. 
 
 ### 4.1 Grupo Usuarios y Autenticacion
-En este apartado o grupo funcional se tiene como objetivo el englobar lo que serian los usuarios de Soltura. Esto ademas de las tablas de los codigos de validacion, un apartado reservado a tener acceso a los servicios que ofrece Soltura, esto ya sea para entrar a un establecimiento, canjear un descuento o utilizar dinero de un fondo. 
+En este apartado o grupo funcional se tiene como objetivo el englobar lo que serian los usuarios de Soltura. Esto ademas de las tablas de los codigos de validacion, un apartado reservado a tener acceso a los servicios que ofrece Soltura, esto ya sea para entrar a un establecimiento, canjear un descuento o utilizar dinero de un fondo. Resaltaremos que cuando incluyamos cada una de las tablas en el grupo funcional las llaves primarias estaran destacadas con el simbolo de "🔑", esto mientras que las llaves foraneas estaran representadas con el simbolo de "🔗".
 
 #### 4.1.1 SocaiUsers
 Esta tabla permite registrar los datos basicos del usuario incluyendo, id, nombres, address, password etc. Tambien posee una llave foranea con "AddressId" para determinar la residencia del usuario o lugar de facturacion posteriormente.
@@ -726,6 +726,50 @@ Esta tabla basicamente define los niveles de gravedad del log esto para tomarlos
 | 🔑 LogSeverityId | int | 4 | ✓ | 1 | □ | |
 | name | varchar(40) | 40 | □ | | ✓ | |
 | lastUpdate | datetime | 8 | □ | | ✓ | |
+
+#### 4.6.7 SocaiSchedules
+Esta seria la tabla que define los patrones de recurrencia (mensual, anual, etc.) y dias de pago para las suscripciones y cargos automaticos.
+
+| Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
+|-------------------|---------------|----------|-----------|-------------------------|----------------------|---------------------|
+| 🔑 ScheduleId | int | 4 | ✓ | 1 | □ | |
+| name | varchar(40) | 40 | □ | | ✓ | |
+| recurrenceType | varchar(20) | 20 | □ | | ✓ | |
+| paymentDay | tinyint | 1 | □ | | ✓ | |
+| status | bit | 1 | □ | | □ | |
+
+#### 4.6.8 SocaiScheduleDeatils
+Posteriormente la tabla de ScheduleDetails nos proporciona un registro de las ejecuciones especificas de cada programacion, incluyendo proxima ejecucion, ultima ejecucion y conteo de intentos.
+
+| Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
+|-------------------|---------------|----------|-----------|-------------------------|----------------------|---------------------|
+| 🔑 ScheduleDetailId | int | 4 | ✓ | 1 | □ | |
+| baseDate | datetime | 8 | □ | | □ | |
+| nextExecution | datetime | 8 | □ | | ✓ | |
+| lastExecution | datetime | 8 | □ | | ✓ | |
+| executionStatus | bit | 1 | □ | | □ | |
+| attemptCount | int | 4 | □ | | ✓ | ((0)) |
+| 🔗 ScheduleId | int | 4 | □ | | □ | |
+
+#### 4.6.9 SocaiSubscriptionSchedules
+Esta seria una tabla intermdia entre las suscripciones y los horarios en donde se vincula los programas de cobro con suscripciones especificas de usuarios, estableciendo fechas efectivas de inicio y fin para cada periodo de facturacion.
+
+| Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
+|-------------------|---------------|----------|-----------|-------------------------|----------------------|---------------------|
+| 🔑 SubscriptionScheduleId | int | 4 | ✓ | 1 | □ | |
+| createdAt | datetime | 8 | □ | | □ | |
+| updatedAt | datetime | 8 | □ | | ✓ | |
+| status | bit | 1 | □ | | ✓ | |
+| effectiveStartDate | datetime | 8 | □ | | □ | |
+| effectiveEndDate | datetime | 8 | □ | | □ | |
+| 🔗 ScheduleId | int | 4 | □ | | □ | |
+| 🔗 SubscriptionUserId | int | 4 | □ | | □ | |
+
+
+
+
+
+
 
 
 
