@@ -1,4 +1,4 @@
-# Caso 2 Base de Datos Soltura
+# Caso 2 Base de Datos Soltura: Documentacion
 
 ## Integrantes
 * Santiago Calderón Zúñiga 
