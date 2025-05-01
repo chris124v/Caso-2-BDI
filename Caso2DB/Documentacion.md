@@ -33,21 +33,21 @@ En el siguiente apartado se definen las entidades del modelo, importante mencion
     8. CommerceContactPerson ✓
     9. TaxRates ✓
     10. ServiceTypes ✓
-6. Countries
-    1. Provinces
-    2. Cities
-    3. Addresses
-7. Transactions
-    1. TransactionTypes
-    2. TransactionSubTypes
-8. CurrencyTypes
-    1. CurrencyExchange
+6. Countries ✓
+    1. Provinces ✓
+    2. Cities ✓
+    3. Addresses ✓
+7. Transactions ✓
+    1. TransactionTypes ✓
+    2. TransactionSubTypes ✓
+8. CurrencyTypes ✓
+    1. CurrencyExchange ✓
 9. Payments ✓
     1. DataPayments ✓
     2. PaymentMethods ✓
     3. ResultPayment ✓
-10. Files
-    1. FileTypes
+10. Files ✓
+    1. FileTypes ✓
 11. Logs
     1. LogTypes
     2. LogSources
@@ -57,9 +57,9 @@ En el siguiente apartado se definen las entidades del modelo, importante mencion
     2. SubscriptionSchedule
 13. ValidationQR ✓
     1. ValidationTypes ✓
-14. Balance
-    1. BalanceTypes
-    2. BalancePerPerson
+14. Balance ✓
+    1. BalanceTypes ✓
+    2. BalancePerPerson ✓
 
 ### 1.2 Tecnologias
 * MongoDB
@@ -302,7 +302,7 @@ Esta tabla corresponde a la informacion del representante designado del proveedo
 | Email | varchar(100) | 100 | □ | | ✓ | |
 | 🔗 CommerceId | int | 4 | □ | | □ | |
 
-#### 4.3.2 SocaiContractCommerces
+#### 4.3.3 SocaiContractCommerces
 En este apartado tenemos la tabla que corresponde al documento formal del contrato que tiene el comercio o proveedor con Soltura, importante mencionar que este contrato es el documento como tal que indica validez, descripcion, comercio, firma y si esta activo. Propiamente la distribucion de dinero se hace en una tabla aparte pero esta tabla posee el documento general que establece el acuerdo. 
 
 | Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
@@ -318,7 +318,7 @@ En este apartado tenemos la tabla que corresponde al documento formal del contra
 | 🔗 FileId | int | 4 | □ | | □ | |
 | 🔗 CountryId | int | 4 | □ | | □ | |
 
-#### 4.3.3 SocaiRenewals
+#### 4.3.4 SocaiRenewals
 Esta tabla almacena las renovaciones de contratos con comercios que ya tenian un contrato previamente, esta tabla nos sirve mas que todo para tener un registro del porque se continua dicha renovacion y que otras condiciones podrian agregarse a contratos futuros. 
 
 | Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
@@ -328,7 +328,7 @@ Esta tabla almacena las renovaciones de contratos con comercios que ya tenian un
 | renewalMotive | varchar(500) | 500 | □ | | □ | |
 | 🔗 ContractCommercesId | int | 4 | □ | | □ | |
 
-#### 4.3.4 SocaiContractObligations
+#### 4.3.5 SocaiContractObligations
 Este apartado serian las obligaciones financieras generales del proveedor a pagar o en este caso el precio que da propiamente a Soltura para ofrecer, se le adjunta el contrato, la moneda la que hay que pagar, si es una obligacion activa y finalmente la fecha de inicio y final.
 
 | Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
@@ -433,7 +433,7 @@ Esta tabla seria la mas importante en referencia a comercios o proveedores, en e
 | IsCombined | bit | 1 | □ | | □ | ((0)) |
 | 🔗 ContractCommercesId | int | 4 | □ | | □ | |
 
-#### 4.3.9.1 SocaiServiceTypes
+#### 4.3.10 SocaiServiceTypes
 Esta tabla como mencione anteriormente son los servicios que se pueden ofrecer como: cantidad, monto, descuento y combinados.
 
 | Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
@@ -501,9 +501,232 @@ Esta tabla tiene como objetivo determinar posibles resultados de intentos de pag
 | name | varchar(30) | 30 | □ | | ✓ | |
 | description | varchar(300) | 300 | □ | | ✓ | |
 
+#### 4.4.5 SocaiCurrencyTypes
+Esta seria simplemente la tabla que define las monedas aceptadas por el sistema, incluimos campos en la tabla como: nombre, símbolo, acronimo (CRC, USD).
 
+| Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
+|-------------------|---------------|----------|-----------|-------------------------|----------------------|---------------------|
+| 🔑 CurrencyTypeId | int | 4 | ✓ | 1 | □ | |
+| name | varchar(20) | 20 | □ | | ✓ | |
+| acronym | varchar(10) | 10 | □ | | ✓ | |
+| symbol | varchar(5) | 5 | □ | | ✓ | |
+
+#### 4.4.6 SocaiCurrencyExchange
+Esta seria la tabla que gestiona tasas de cambio de monedas, a lo largo del tiempo. Esto incluyendo moneda origen, destino, tasa, fechas de validez y pais. 
+
+| Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
+|-------------------|---------------|----------|-----------|-------------------------|----------------------|---------------------|
+| 🔑 CurrencyExchangeId | int | 4 | ✓ | 1 | □ | |
+| startDate | datetime | 8 | □ | | ✓ | |
+| endDate | datetime | 8 | □ | | ✓ | |
+| exchangeRate | decimal(18, 2) | 9 | □ | | ✓ | |
+| enabled | bit | 1 | □ | | ✓ | |
+| currentExchangeRate | bit | 1 | □ | | ✓ | |
+| 🔗 CurrencyTypeId | int | 4 | □ | | □ | |
+| 🔗 CurrencyTypeDestinyId | int | 4 | □ | | □ | |
+| 🔗 CountryId | int | 4 | □ | | □ | |
+
+#### 4.4.7 SocaiTransactions
+La tabla de transactions es una de las mas importantes del diseño, esto debido a que es la encargada de registrar cada operacion financiera que suceda en el sistema. Por esta tabla pasan las liquidaciones individuales de cada comercio, los balances de uso de beneficios y el registrar el pago de suscripciones. Algunos de los campos que podemos encontrar en esta tabla serian montos, fechas, descripciones, referencias y la moneda. Tambien estarian los tipos de transacciones y subtipos que explicaremos mas adelante.
+
+| Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
+|-------------------|---------------|----------|-----------|-------------------------|----------------------|---------------------|
+| 🔑 TransactionId | int | 4 | ✓ | 1 | □ | |
+| amount | decimal(15, 2) | 9 | □ | | ✓ | |
+| description | varchar(300) | 300 | □ | | ✓ | |
+| transactionDateTime | datetime | 8 | □ | | ✓ | |
+| postTime | datetime | 8 | □ | | ✓ | |
+| referenceNumber | varchar(200) | 200 | □ | | ✓ | |
+| checksum | varbinary(255) | 255 | □ | | ✓ | |
+| 🔗 TransactionTypeId | int | 4 | □ | | □ | |
+| 🔗 TransactionSubTypeId | int | 4 | □ | | □ | |
+| 🔗 CurrencyTypeId | int | 4 | □ | | □ | |
+| 🔗 PaymentId | int | 4 | □ | | □ | |
+| 🔗 UserId | int | 4 | □ | | □ | |
+| 🔗 ExchangeRateId | int | 4 | □ | | □ | |
+
+#### 4.4.8 SocaiTransactionTypes
+Esta tabla lo que hace es categorizar las transacciones en tipos generales como podrian ser el pago de suscripcin, uso de beneficio o liquidacion a comercio. 
+
+| Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
+|-------------------|---------------|----------|-----------|-------------------------|----------------------|---------------------|
+| 🔑 TransactionTypeId | int | 4 | ✓ | 1 | □ | |
+| name | varchar(35) | 35 | □ | | ✓ | |
+| description | varchar(300) | 300 | □ | | ✓ | |
+
+#### 4.4.9 SocaiTransactionSubTypes
+Estarian las subcategorias de las categorias o tipos principales de transaccion. Por ejemplo para "Pago": "Inicial", "Renovacion", "Upgrade"; luego para "Uso": "Gimnasio", "Combustible" etc...
+
+| Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
+|-------------------|---------------|----------|-----------|-------------------------|----------------------|---------------------|
+| 🔑 TransactionSubTypeId | int | 4 | ✓ | 1 | □ | |
+| name | varchar(35) | 35 | □ | | ✓ | |
+| description | varchar(300) | 300 | □ | | ✓ | |
+
+#### 4.4.10 SocaiBalances
+Esta tabla es la encargada de registrar movimientos de los saldos, cantidades o descuentos de los beneficios del plan de cada persona o usuario. Como vemos lo registra como una transaccion, lo conecta con el usuario y establece el tipo de balance que es. Un ejemplo de ello podria ser la asignacion de 10 pedidos Uber Eats, consumo de 1 pedido. 
+
+| Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
+|-------------------|---------------|----------|-----------|-------------------------|----------------------|---------------------|
+| 🔑 BalanceId | int | 4 | ✓ | 1 | □ | |
+| amount | decimal(18, 2) | 9 | □ | | □ | |
+| movementDate | datetime | 8 | □ | | □ | |
+| description | varchar(300) | 300 | □ | | ✓ | |
+| createdAt | datetime | 8 | □ | | □ | (getdate()) |
+| 🔗 BalanceTypeId | int | 4 | □ | | □ | |
+| 🔗 CurrencyTypeId | int | 4 | □ | | □ | |
+| 🔗 TransactionId | int | 4 | □ | | ✓ | |
+| 🔗 SubscriptionUserId | int | 4 | □ | | □ | |
+| 🔗 FeaturesSubscriptionsId | int | 4 | □ | | □ | |
+
+#### 4.4.11 SocaiBalanceTypes
+Esta tabla propiamente categoriza los movimientos de saldo, serian simplemente los nombres y descripciones de los tipos de movimiento. Algunos ejemplos podrian ser: "Asignacion inicial", "Consumo", "Ajuste manual", "Bonificacion".
+
+| Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
+|-------------------|---------------|----------|-----------|-------------------------|----------------------|---------------------|
+| 🔑 BalanceTypeId | int | 4 | ✓ | 1 | □ | |
+| name | varchar(40) | 40 | □ | | ✓ | |
+| description | varchar(300) | 300 | □ | | ✓ | |
+
+#### 4.4.12 SocaiBalancePerPerson
+Esta seria la tabla que nos permite mantener el saldo actual de cada beneficio por usuario, esto registrando la suscripcion a la que pertence, el beneficio individual cuyo balance esta siendo modificado y posteriormente lo que le queda despues de el uso del beneficio. Por ejemplo, en este caso hipotetico encontramos un registro con ID 501 que pertenece a Juan Perez (SubscriptionUserId: 101), quien tiene un plan "Full Modern Family". Este registro muestra que actualmente dispone de 10 pedidos de Uber Eats (FeaturesSubscriptionsId: 203), luego de varios movimientos durante el mes: inicialmente recibio 10 pedidos al activar su plan el 1 de abril, utilizo uno el 5 de abril (quedando 9), otro el 12 de abril (quedando 8, se actualiza currentbalance). Y luego recibio una bonificacion de 2 pedidos adicionales el 15 de abril (subiendo a 10), uso otro pedido el 20 de abril (bajando a 9), y finalmente recibió una compensación de 1 pedido el 25 de abril por un error en el sistema, dejando su saldo final en 10 pedidos disponibles. Esta tabla basicamente mantiene siempre este valor actual (currentBalance: 10.0) sin necesidad de recalcular sumando todos los movimientos historicos, facilitando validaciones instantaneas cuando Juan intenta realizar un nuevo pedido. La diferencia con "SocaiBalances" es que SocaiBalances registra cada movimiento individualmente, esto mientras que "SocaiBalancePerPerson" mantiene solo el saldo actual consolidado.
+
+| Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
+|-------------------|---------------|----------|-----------|-------------------------|----------------------|---------------------|
+| 🔑 BalancePerPersonId | int | 4 | ✓ | 1 | □ | |
+| currentBalance | decimal(18, 2) | 9 | □ | | □ | ((0)) |
+| updatedAt | datetime | 8 | □ | | ✓ | |
+| 🔗 SuscriptionUserId | int | 4 | □ | | □ | |
+| 🔗 BalanceId | int | 4 | □ | | □ | |
+| 🔗 FeaturesSubscriptionId | int | 4 | □ | | □ | |
 
 ### 4.5 Grupo Geolocalizacion
+Este grupo funcional nos permite localizar la direccion de los usuarios, esto para tenerlo como datos en su perfil de usuario, direccion de facturacion y muy importante los proveedores que tiene cerca. Esto debido a que un usuario no va a inlcuir en su plan customisable un servicio que se encuentre muy lejos de su residencia. Tambien incluimos un apartado de paises esto tomando en cuenta la expansion de Soltura en America Latina esto a pesar de que la prueba inicial se esta haciendo en Costa Rica.
+
+#### 4.5.1 SocaiCountries
+Esta tabla es un listado de los paises en donde opera Soltura. Esta tabla tambien nos permite determinar CurrencyExchanges, TaxRates y identificar el pais de cada comercio o proveedor una vez se de la expansion. 
+
+| Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
+|-------------------|---------------|----------|-----------|-------------------------|----------------------|---------------------|
+| 🔑 CountryId | int | 4 | ✓ | 1 | □ | |
+| Name | varchar(60) | 60 | □ | | □ | |
+| CreatedAt | datetime | 8 | □ | | □ | |
+| UpdatedAt | datetime | 8 | □ | | □ | |
+
+#### 4.5.2 SocaiProvinces
+Esta tabla corresponde al listado de provincias de cada pais.
+
+| Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
+|-------------------|---------------|----------|-----------|-------------------------|----------------------|---------------------|
+| 🔑 ProvinciasId | int | 4 | ✓ | 1 | □ | |
+| Name | varchar(100) | 100 | □ | | □ | |
+| Createdate | datetime | 8 | □ | | □ | |
+| Updatedate | datetime | 8 | □ | | □ | |
+| 🔗 CountryId | int | 4 | □ | | □ | |
+
+#### 4.5.3 SocaiCities
+Esta tabla establece las ciudades que tiene cada provincia, seria nada mas un listado.
+
+| Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
+|-------------------|---------------|----------|-----------|-------------------------|----------------------|---------------------|
+| 🔑 CityID | int | 4 | ✓ | 1 | □ | |
+| Name | varchar(100) | 100 | □ | | □ | |
+| 🔗 ProvinciasId | int | 4 | □ | | □ | |
+| CreatedAt | datetime | 8 | □ | | □ | |
+| UpdatedAt | datetime | 8 | □ | | □ | |
+
+#### 4.5.4 SocaiAddresses
+Esta tabla de direccion es la mas importante del grupo funcional de geolocalizacion. Esto debido a que la que incluye los datos primordiales para el registro de un usuario, para facturacion o transacciones y para establecer un punto especifico. Mediante el codigo postal se puede determinar propiamente donde se debe realizar el pago de una suscripcion o incluso los servicios que estan cerca de esta area, esto ademas de la ciudad y un campo de "point" que nos permite determinar posiciones exactas de los usuarios. 
+
+| Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
+|-------------------|---------------|----------|-----------|-------------------------|----------------------|---------------------|
+| 🔑 AddressId | int | 4 | ✓ | 1 | □ | |
+| PostalCode | varchar(20) | 20 | □ | | □ | |
+| 🔗 CityId | int | 4 | □ | | □ | |
+| direccion | varchar(250) | 250 | □ | | □ | |
+| CreatedAt | datetime | 8 | □ | | □ | |
+| UpdatedAt | datetime | 8 | □ | | □ | |
+| point | geography | -1 | □ | | ✓ | |
 
 ### 4.6 Grupo Sistema 
+Este ultimo grupo funcional de Sistema es basicamente el registro de todas las acciones que pasan en la base de datos. Tambien maneja el almacenamiento, categorización y recuperacion de todos los archivos digitales usados por la plataforma Soltura, como contratos, logos, documentos legales y otros recursos. En este apartado tambien incluimos Schedules como notificaciones propias del sistema para recordar pagos o eventos recurrentes. 
+
+#### 4.6.1 SocaiFiles
+Esta es una tabla que almacena la metadata de los archivos en el sistema, incluyendo nombre, descripcion, URL, tamaño, tipo MIME, usuario que lo subio y referencias a su tipo. Ciertamente funciona como repositorio central para todos los documentos digitales de la plataforma, esto incluyendo contratos con los proveedores y los terminos y condiciones y condiciones propiamente. 
+
+| Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
+|-------------------|---------------|----------|-----------|-------------------------|----------------------|---------------------|
+| 🔑 FileId | int | 4 | ✓ | 1 | □ | |
+| fileName | varchar(200) | 200 | □ | | ✓ | |
+| description | varchar(300) | 300 | □ | | ✓ | |
+| fileURL | varchar(250) | 250 | □ | | ✓ | |
+| deleted | bit | 1 | □ | | ✓ | |
+| lastUpdated | datetime | 8 | □ | | ✓ | |
+| creation | datetime | 8 | □ | | □ | |
+| fileSize | bigint | 8 | □ | | ✓ | |
+| mimeType | varchar(5) | 5 | □ | | ✓ | |
+| 🔗 UserId | int | 4 | □ | | □ | |
+| 🔗 FileTypeId | int | 4 | □ | | □ | |
+
+#### 4.6.2 SocaiFileTypes
+Esta tabla seria simplemente un catalogo que clasifica los tipos de archivos permitidos en el sistema, con informacion sobre los tipos MIME, iconos asociados y si estan habilitados para uso.
+
+| Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
+|-------------------|---------------|----------|-----------|-------------------------|----------------------|---------------------|
+| 🔑 FileTypeId | int | 4 | ✓ | 1 | □ | |
+| name | varchar(35) | 35 | □ | | ✓ | |
+| mimeType | varchar(5) | 5 | □ | | ✓ | |
+| icon | varchar(200) | 200 | □ | | ✓ | |
+| enabled | bit | 1 | □ | | ✓ | ((1)) |
+
+#### 4.6.3 SocaiLogs
+La tabla de SocaiLogs digamos es la mas importante de todo el sistema, esto mas que todo porque es la tabla principal que registra todos los eventos del sistema, incluyendo descripciones, marcas de tiempo, origen, severidad y usuario asociado, permitiendo una auditoria completa de actividades. Esta tambien registra transacciones y mantiene la integridad de datos por "checksum", un poco mas adelante vamos a hablar de los tipos, origenes y severidades de los logs.
+
+| Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
+|-------------------|---------------|----------|-----------|-------------------------|----------------------|---------------------|
+| 🔑 LogId | int | 4 | ✓ | 1 | □ | |
+| description | varchar(255) | 255 | □ | | ✓ | |
+| postTime | datetime | 8 | □ | | ✓ | |
+| computer | varchar(100) | 100 | □ | | ✓ | |
+| username | varchar(100) | 100 | □ | | ✓ | |
+| trace | varchar(255) | 255 | □ | | ✓ | |
+| referenceID1 | bigint | 8 | □ | | ✓ | |
+| referenceID2 | bigint | 8 | □ | | ✓ | |
+| value1 | varchar(100) | 100 | □ | | ✓ | |
+| value2 | varchar(100) | 100 | □ | | ✓ | |
+| checksum | varbinary(255) | 255 | □ | | ✓ | |
+| lastUpdate | datetime | 8 | □ | | ✓ | |
+| 🔗 LogTypeId | int | 4 | □ | | □ | |
+| 🔗 LogSourceId | int | 4 | □ | | □ | |
+| 🔗 LogSeverityId | int | 4 | □ | | □ | |
+| 🔗 UserId | int | 4 | □ | | □ | |
+| 🔗 TransactionId | int | 4 | □ | | □ | |
+
+#### 4.6.4 SocaiLogTypes
+Esta tabla en un listado del tipo de logs que puede haber registrados en el sistema, algunos ejemplos podrian ser: un login, transaccion, error y demas para categorización.
+
+| Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
+|-------------------|---------------|----------|-----------|-------------------------|----------------------|---------------------|
+| 🔑 LogTypeId | int | 4 | ✓ | 1 | □ | |
+| name | varchar(40) | 40 | □ | | ✓ | |
+
+#### 4.6.5 SocaiLogSources
+Posteriormente LogSources se refiere al origen del log, si es un registro del propio sistema, si viene desde una aplicacion movil o web y demas. Esto nos permite analizar los Logs en caso de que haya un error en el sistema y ver propiamente de donde se origino dicho error.
+
+| Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
+|-------------------|---------------|----------|-----------|-------------------------|----------------------|---------------------|
+| 🔑 LogSourceId | int | 4 | ✓ | 1 | □ | |
+| name | varchar(40) | 40 | □ | | ✓ | |
+
+#### 4.6.6 SocaiLogSeverities
+Esta tabla basicamente define los niveles de gravedad del log esto para tomarlos en cuenta si hay un errror. Algunos ejemplos podrian ser informativo, advertencia, error y crítico.
+
+| Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
+|-------------------|---------------|----------|-----------|-------------------------|----------------------|---------------------|
+| 🔑 LogSeverityId | int | 4 | ✓ | 1 | □ | |
+| name | varchar(40) | 40 | □ | | ✓ | |
+| lastUpdate | datetime | 8 | □ | | ✓ | |
+
+
+
 
