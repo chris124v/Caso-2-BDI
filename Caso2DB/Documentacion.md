@@ -1,6 +1,6 @@
 # Caso 2 Base de Datos Soltura
 
-### Integrantes
+## Integrantes
 * Santiago Calderón Zúñiga 
 * Adrián Josué Barquero Sánchez
 * Christopher Daniel Vargas Villalta
@@ -22,16 +22,17 @@ En el siguiente apartado se definen las entidades del modelo, importante mencion
    3. FeaturesSubscriptions ✓
    4. SubscriptionMembers ✓
    5. UnitTypes ✓
-5. Commerces
-    1. CommercesFeatures
-    2. Renewals
-    3. ContractCommerces
-    4. ContractObligations
-    5. CommerceSettlement
-    6. CommerceSettlementDetail
-    7. CommerceBalance
-    8. TaxRates
-    9. ServiceTypes
+5. Commerces ✓
+    1. CommercesFeatures ✓
+    2. Renewals ✓
+    3. ContractCommerces ✓
+    4. ContractObligations ✓
+    5. CommerceSettlement ✓
+    6. CommerceSettlementDetail ✓
+    7. CommerceBalance ✓
+    8. CommerceContactPerson ✓
+    9. TaxRates ✓
+    10. ServiceTypes ✓
 6. Countries
     1. Provinces
     2. Cities
@@ -41,10 +42,10 @@ En el siguiente apartado se definen las entidades del modelo, importante mencion
     2. TransactionSubTypes
 8. CurrencyTypes
     1. CurrencyExchange
-9. Payments
-    1. DataPayments
-    2. PaymentMethods
-    3. ResultPaymenrt 
+9. Payments ✓
+    1. DataPayments ✓
+    2. PaymentMethods ✓
+    3. ResultPayment ✓
 10. Files
     1. FileTypes
 11. Logs
@@ -260,12 +261,8 @@ Esta seria una tabla intermedia que define cuales beneficios o servicios incluye
 | MemberCount | int | 4 | □ | | □ | |
 | IsMemberSpecific | bit | 1 | □ | | □ | ((0)) |
 
-
-
-
-
 ### 4.3 Grupo Comercios y Contratos
-En el grupo de comercios y contratos el objetivo principal es establecer claramente como se realizaran, tanto los acuerdos o contratos que posee Soltura con los proveedores, como la liquidacion de pagos que define que dinero le pertence tanto a Soltura como a los proveedores. Esto repercutira directamente en como los servicios que ofrencen los proveedores, seran incluidos en los planes de suscripcion que ofrece Soltura. Primeramente hay que definir las categorias de servicios que engloban los paquetes, serian las siguientes. 
+En el grupo de comercios y contratos el objetivo principal es establecer claramente como se realizaran, tanto los acuerdos o contratos que posee Soltura con los proveedores, como la liquidacion de pagos que define que dinero le pertence tanto a Soltura como a los proveedores. Esto repercutira directamente en como los servicios que ofrencen los proveedores que seran incluidos en los planes de suscripcion que ofrece Soltura. Primeramente hay que definir las categorias de servicios que engloban los paquetes, serian las siguientes. 
 
 1. Servicio por cantidad: Este tipo corresponde a la cantidad de veces que uno puede optar por determinado servicio en su plan, digamos en un plan basico puedo optar por 3 servicios de lavanderia al mes.
 2. Servicio por monto: Este tipo de servicio corresponde a el dinero disponible que ofrece el plan para gastarlo en determinado servicio, un ejemplo de esto puede ser la gasolina, para todo el mes hay un monto fijo de ₡50,000 colones.
@@ -274,9 +271,237 @@ En el grupo de comercios y contratos el objetivo principal es establecer clarame
 
 Una vez explicado como se da el funcionamiento de los servicios que ofrece cada comercio o proveedor, es necesario analizar primeramente como se realiza la division del dinero entre Soltura y los proveedores. Este apartado de liquidicacion del dinero tiene que ver con el precio del servicio que da el proveedor a Soltura. Por ejemplo, el precio original del Smartfit es de ₡18,000 colones mensuales, dado a que Soltura asegura una cantidad de clientes a Smartfit estos le ofrecen un precio de ₡15,000 colones con IVA incluido que es del 13%. Osea serian ₡13,050 colones del precio que da el proveedor a Soltura, mas ₡1950 colones de IVA. A partir de esto soltura establece un precio que sea reducido y que se pueda incluir en el plan, entonces por ejemplo suben el precio a ₡16,500 colones, de esto ellos obtienen ₡1500 de ganancia sin tomar en cuenta el impuesto. Osea, serian ₡1305 colones de ganancia, esto mas ₡195 colones de IVA. Resumiendo asi que Soltura se llevaria ₡1500 colones de ganancia, y Smartfit se llevaria sus ₡15,000 colones por dar el servicio a soltura.
 
-Tomando esto en cuenta 
+Tomando esto en cuenta para entender los contratos con los proveedores y como van a ofrecer sus servicios procederemos a explicar cada una de las tablas de este grupo funcional.
+
+#### 4.3.1 SocaiCommerces
+Esta tabla es la que contiene la informacion general del comercio, osea del proveedor. Nos menciona todos los datos necesarios para identificarlo y si es un proveedor activo.
+
+| Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
+|-------------------|---------------|----------|-----------|-------------------------|----------------------|---------------------|
+| 🔑 CommerceId | int | 4 | ✓ | 1 | □ | |
+| Name | varchar(225) | 225 | □ | | ✓ | |
+| Description | varchar(250) | 250 | □ | | ✓ | |
+| 🔗 AddressId | int | 4 | □ | | □ | |
+| PhoneNumber | varchar(20) | 20 | □ | | ✓ | |
+| Email | varchar(200) | 200 | □ | | □ | |
+| 🔗 FileId | int | 4 | □ | | □ | |
+| IsActive | bit | 1 | □ | | □ | |
+| CreatedAt | datetime | 8 | □ | | □ | |
+| UpdatedAt | datetime | 8 | □ | | □ | |
+
+#### 4.3.2 SocaiCommerceContactPerson
+Esta tabla corresponde a la informacion del representante designado del proveedor, esto para facilitar la comunicacion y tener registrada a una persona fisica o juridica que sea capaz de comunicarse con Soltura propiamente.
+
+| Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
+|-------------------|---------------|----------|-----------|-------------------------|----------------------|---------------------|
+| 🔑 ContactPersonId | int | 4 | ✓ | 1 | □ | |
+| Name | varchar(60) | 60 | □ | | □ | |
+| Position | varchar(100) | 100 | □ | | ✓ | |
+| Department | varchar(100) | 100 | □ | | ✓ | |
+| PhoneNumber | varchar(20) | 20 | □ | | □ | |
+| Email | varchar(100) | 100 | □ | | ✓ | |
+| 🔗 CommerceId | int | 4 | □ | | □ | |
+
+#### 4.3.2 SocaiContractCommerces
+En este apartado tenemos la tabla que corresponde al documento formal del contrato que tiene el comercio o proveedor con Soltura, importante mencionar que este contrato es el documento como tal que indica validez, descripcion, comercio, firma y si esta activo. Propiamente la distribucion de dinero se hace en una tabla aparte pero esta tabla posee el documento general que establece el acuerdo. 
+
+| Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
+|-------------------|---------------|----------|-----------|-------------------------|----------------------|---------------------|
+| 🔑 ContractCommercesId | int | 4 | ✓ | 1 | □ | |
+| validFrom | datetime | 8 | □ | | □ | |
+| validTo | datetime | 8 | □ | | ✓ | |
+| contractType | varchar(50) | 50 | □ | | ✓ | |
+| contractDescription | varchar(150) | 150 | □ | | ✓ | |
+| isActive | bit | 1 | □ | | □ | |
+| 🔗 CommerceId | int | 4 | □ | | □ | |
+| inChargeSignature | varchar(100) | 100 | □ | | □ | |
+| 🔗 FileId | int | 4 | □ | | □ | |
+| 🔗 CountryId | int | 4 | □ | | □ | |
+
+#### 4.3.3 SocaiRenewals
+Esta tabla almacena las renovaciones de contratos con comercios que ya tenian un contrato previamente, esta tabla nos sirve mas que todo para tener un registro del porque se continua dicha renovacion y que otras condiciones podrian agregarse a contratos futuros. 
+
+| Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
+|-------------------|---------------|----------|-----------|-------------------------|----------------------|---------------------|
+| 🔑 RenewalId | int | 4 | ✓ | 1 | □ | |
+| renewalDate | datetime | 8 | □ | | □ | |
+| renewalMotive | varchar(500) | 500 | □ | | □ | |
+| 🔗 ContractCommercesId | int | 4 | □ | | □ | |
+
+#### 4.3.4 SocaiContractObligations
+Este apartado serian las obligaciones financieras generales del proveedor a pagar o en este caso el precio que da propiamente a Soltura para ofrecer, se le adjunta el contrato, la moneda la que hay que pagar, si es una obligacion activa y finalmente la fecha de inicio y final.
+
+| Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
+|-------------------|---------------|----------|-----------|-------------------------|----------------------|---------------------|
+| 🔑 ObligationsId | int | 4 | ✓ | 1 | □ | |
+| amountToPay | decimal(15, 2) | 9 | □ | | □ | |
+| 🔗 CurrencyId | int | 4 | □ | | □ | |
+| isActive | bit | 1 | □ | | □ | |
+| startdate | datetime | 8 | □ | | □ | |
+| limitdate | datetime | 8 | □ | | □ | |
+| 🔗 ContractCommercesID | int | 4 | □ | | □ | |
+
+#### 4.3.5 SocaiCommerceSettlement
+Esta es la tabla que gestiona las liquidaciones periodicas con cada comercio, contiene todo lo que seria períodos de liquidación, montos brutos/netos, comisiones, impuestos. Esto nos permite llevar a gran escala el manejo de dinero de Soltura y gestionarlo de forma correcta. Se podria considerar como una factura.
+
+| Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
+|-------------------|---------------|----------|-----------|-------------------------|----------------------|---------------------|
+| 🔑 CommerceSettlementId | int | 4 | □ | | □ | |
+| settlementPeriodStart | datetime | 8 | □ | | □ | |
+| settlementPeriodEnd | datetime | 8 | □ | | □ | |
+| totalGross | decimal(18, 2) | 9 | □ | | □ | |
+| totalCommission | decimal(18, 2) | 9 | □ | | □ | |
+| totalNet | decimal(18, 2) | 9 | □ | | □ | |
+| settlementDate | datetime | 8 | □ | | ✓ | |
+| status | varchar(20) | 20 | □ | | □ | |
+| createdAt | datetime | 8 | □ | | □ | (getdate()) |
+| updatedAt | datetime | 8 | □ | | ✓ | |
+| 🔗 CommerceId | int | 4 | □ | | □ | |
+| 🔗 TaxRateId | int | 4 | □ | | □ | |
+| TaxAmount | decimal(18, 2) | 9 | □ | | ✓ | |
+| IncludesTax | bit | 1 | □ | | □ | ((1)) |
+
+#### 4.3.6 SocaiCommerceSettlementDetail
+Esta seria una tabla casi igual que la anterior solo que detalla cada transacción individual dentro de una liquidacion, como podrian ser montos, comisiones, referencias a transacciones específicas y demas. 
+
+| Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
+|-------------------|---------------|----------|-----------|-------------------------|----------------------|---------------------|
+| 🔑 CommerceSettlementDetailId | int | 4 | ✓ | 1 | □ | |
+| grossAmount | decimal(18, 2) | 9 | □ | | □ | |
+| commission | decimal(18, 2) | 9 | □ | | □ | |
+| Termsandconditions | varchar(MAX) | -1 | □ | | □ | |
+| netAmount | decimal(18, 2) | 9 | □ | | □ | |
+| createdAt | datetime | 8 | □ | | □ | (getdate()) |
+| updatedAt | datetime | 8 | □ | | ✓ | |
+| 🔗 CommerceSettlementId | int | 4 | □ | | □ | |
+| 🔗 TransactionId | int | 4 | □ | | □ | |
+| 🔗 TaxRateId | int | 4 | □ | | □ | |
+| TaxAmount | decimal(18, 2) | 9 | □ | | ✓ | |
+| IncludesTax | bit | 1 | □ | | ✓ | ((1)) |
+
+#### 4.3.7 SocaiCommerceBalance
+Esta tabla simplemente mantiene el saldo actualizado con cada comercio o proveedor, define propiamente el balance actual y la ultima fecha de liquidicacion.
+
+| Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
+|-------------------|---------------|----------|-----------|-------------------------|----------------------|---------------------|
+| 🔑 CommerceBalanceId | int | 4 | ✓ | 1 | □ | |
+| currentBalance | decimal(18, 2) | 9 | □ | | □ | ((0)) |
+| lastSettlementDate | datetime | 8 | □ | | ✓ | |
+| updatedAt | datetime | 8 | □ | | □ | (getdate()) |
+| 🔗 CommerceId | int | 4 | □ | | □ | |
+
+#### 4.3.8 SocaiTaxRates
+Tabla que normaliza tasas de impuestos aplicables a diversos beneficios o servicios, nos permite agregarlo en liquidaciones y posteriormente en la division de dinero con el proveedor y Soltura. 
+
+| Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
+|-------------------|---------------|----------|-----------|-------------------------|----------------------|---------------------|
+| 🔑 TaxRateId | int | 4 | ✓ | 1 | □ | |
+| Name | varchar(30) | 30 | □ | | □ | |
+| Rate | decimal(5, 2) | 5 | □ | | □ | |
+| 🔗 CountryId | int | 4 | □ | | □ | |
+| IsActive | bit | 1 | □ | | □ | ((1)) |
+| ValidFrom | datetime | 8 | □ | | □ | |
+| ValidTo | datetime | 8 | □ | | ✓ | |
+
+#### 4.3.9 SocaiCommerceFeatures
+Esta tabla seria la mas importante en referencia a comercios o proveedores, en este caso designamos una tabla que gestiona el dinero de manera correcta para que tanto el proveedor como Soltura obtengan el dinero que deben llevarse. La tabla en terminos generales define que servicios especificos ofrece cada comercio y bajo que condiciones. Esto incluyendo precios originales, precios negociados, márgenes, impuestos, tipos de servicio, descuento aplicado, validez y finalmente el contrato al que pertenece dicho servicio. Esta tabla es de suma importancia no solo porque gestiona la division del dinero sino que tambien establece si es un servicio modificable de un plan o no en "IsGuaranteedRight", esto para determinar la cantidad de clientes y tambien define terminos y condiciones de la utilizacion de este servicio. Importante mencionar que tambien se define si el servicio es booleano, descuento, monto y cantidad.
+
+| Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
+|-------------------|---------------|----------|-----------|-------------------------|----------------------|---------------------|
+| 🔑 CommercesFeaturesId | int | 4 | ✓ | 1 | □ | |
+| 🔗 CommercesId | int | 4 | □ | | □ | |
+| 🔗 PlanFeatureId | int | 4 | □ | | □ | |
+| IsActive | bit | 1 | □ | | □ | |
+| ValidFrom | datetime | 8 | □ | | □ | |
+| ValidTo | datetime | 8 | □ | | □ | |
+| CreatedAt | datetime | 8 | □ | | □ | |
+| UpdatedAt | datetime | 8 | □ | | □ | |
+| OriginalPrice | decimal(18, 2) | 9 | □ | | □ | |
+| NegotiatedPrice | decimal(18, 2) | 9 | □ | | □ | |
+| 🔗 ServiceTypeId | int | 4 | □ | | □ | |
+| IsGuaranteedRight | bit | 1 | □ | | □ | ((1)) |
+| DiscountType | char(1) | 1 | □ | | □ | |
+| DiscountValue | decimal(18, 2) | 9 | □ | | □ | |
+| SolturaMargin | decimal(18, 2) | 9 | □ | | □ | |
+| IsMarginPercentage | bit | 1 | □ | | □ | ((1)) |
+| InlcudesTax | bit | 1 | □ | | □ | ((1)) |
+| 🔗 TaxRateId | int | 4 | □ | | □ | |
+| MinQuantity | decimal(18, 2) | 9 | □ | | ✓ | |
+| MaxQuantity | decimal(18, 2) | 9 | □ | | ✓ | |
+| TermsAndConditions | varchar(500) | 500 | □ | | ✓ | |
+| AdditionalBenefits | varchar(500) | 500 | □ | | ✓ | |
+| IsCombined | bit | 1 | □ | | □ | ((0)) |
+| 🔗 ContractCommercesId | int | 4 | □ | | □ | |
+
+#### 4.3.9.1 SocaiServiceTypes
+Esta tabla como mencione anteriormente son los servicios que se pueden ofrecer como: cantidad, monto, descuento y combinados.
+
+| Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
+|-------------------|---------------|----------|-----------|-------------------------|----------------------|---------------------|
+| 🔑 ServiceTypeId | int | 4 | ✓ | 1 | □ | |
+| Name | varchar(30) | 30 | □ | | □ | |
+| Description | varchar(300) | 300 | □ | | ✓ | |
+| CreatedAt | datetime | 8 | □ | | □ | |
+| UpdatedAt | datetime | 8 | □ | | □ | |
 
 ### 4.4 Grupo Transacciones y Pagos
+Este grupo funcional resulta super necesario para propiamente realizar los pagos de las suscripciones y no solo eso sino para llevar un registro del uso de beneficios de los usuarios, transaction esta presente casi que en todo el diseno y es muy importante para cuando se va a utilizar un beneficio del plan. Esto ademas de que se conecta con todas las tablas de balances que nos permiten llevar un registro nuevamente de los beneficios utilizados. 
+
+#### 4.4.1 SocaiPayments 
+Esta tabla registra cada pago realizado en el sistema incluyendo aspectos como monto, fecha, método, estado y referencias. Usamos checksum para verificar la inetegridad de los datos y una autenticacion para asegurar el mayor nivel de seguridad. Tambien estan las conexiones con el usuario, datapayment, paymentmethod y resultpayment que se detallaran un poco mas adelante.
+
+| Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
+|-------------------|---------------|----------|-----------|-------------------------|----------------------|---------------------|
+| 🔑 PaymentId | int | 4 | ✓ | 1 | □ | |
+| amount | decimal(15, 0) | 9 | □ | | ✓ | |
+| actualAmount | decimal(15, 0) | 9 | □ | | ✓ | |
+| authentication | varchar(200) | 200 | □ | | ✓ | |
+| reference | varchar(200) | 200 | □ | | ✓ | |
+| chargeToken | varbinary(250) | 250 | □ | | □ | |
+| date | datetime | 8 | □ | | ✓ | |
+| checksum | varbinary(250) | 250 | □ | | □ | |
+| 🔗 DataPaymentId | int | 4 | □ | | □ | |
+| 🔗 PaymentMethodId | int | 4 | □ | | □ | |
+| 🔗 UserId | int | 4 | □ | | □ | |
+| 🔗 ResultPaymentId | int | 4 | □ | | □ | |
+| 🔗 CurrencyTypeId | int | 4 | □ | | □ | |
+
+#### 4.4.2 SocaiDataPayments 
+Almacena informacion segura de metodos de paga de usuarios, esto mediante datos tokenizados de tarjetas, cuentas y preferencias. Esto se hace mediante una mascara y tambien tomando en cuenta los metodos de pagos disponibles.
+
+| Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
+|-------------------|---------------|----------|-----------|-------------------------|----------------------|---------------------|
+| 🔑 DataPaymentId | int | 4 | ✓ | 1 | □ | |
+| name | varchar(30) | 30 | □ | | ✓ | |
+| token | varbinary(255) | 255 | □ | | ✓ | |
+| expToken | datetime | 8 | □ | | ✓ | |
+| maskAccount | varbinary(255) | 255 | □ | | ✓ | |
+| 🔗 UserId | int | 4 | □ | | □ | |
+| 🔗 PaymentMethodId | int | 4 | □ | | □ | |
+
+#### 4.4.3 SocaiPaymentMethods
+Esta tabla seria propiamente el cataologo de los metodos de pago disponibles. Esto propiamente incluiria los nombres, URLs de API, llaves de integración y los logos.
+
+| Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
+|-------------------|---------------|----------|-----------|-------------------------|----------------------|---------------------|
+| 🔑 PaymentMethodId | int | 4 | ✓ | 1 | □ | |
+| name | varchar(30) | 30 | □ | | ✓ | |
+| apiURL | varchar(250) | 250 | □ | | ✓ | |
+| secretKey | varbinary(255) | 255 | □ | | ✓ | |
+| [key] | varbinary(255) | 255 | □ | | ✓ | |
+| logoIconURL | varchar(200) | 200 | □ | | ✓ | |
+| enable | bit | 1 | □ | | □ | |
+
+#### 4.4.4 SocaiResultPayment
+Esta tabla tiene como objetivo determinar posibles resultados de intentos de pago, en caso de que hubiera un error habria un nombre especifico para dicho mal intento y si es correcto habra un resultado que diga correcto.
+
+| Nombre de columna | Tipo de datos | Longitud | Identidad | Incremento de identidad | Permitir valores NULL | Valor predeterminado |
+|-------------------|---------------|----------|-----------|-------------------------|----------------------|---------------------|
+| 🔑 ResultPaymentId | int | 4 | ✓ | 1 | □ | |
+| name | varchar(30) | 30 | □ | | ✓ | |
+| description | varchar(300) | 300 | □ | | ✓ | |
+
+
 
 ### 4.5 Grupo Geolocalizacion
 
