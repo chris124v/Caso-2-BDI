@@ -841,7 +841,7 @@ Los *chargeToken* de la tabla `SocaiPayments.chargeToken` se cifran con
 ---
 
 ### 7.7 Procedimiento seguro de descrifrado
-
+```sql
 CREATE PROCEDURE dbo.SocaiSP_GetToken @PaymentId int AS
 BEGIN
     OPEN SYMMETRIC KEY SK_PayToken DECRYPTION BY CERTIFICATE CertPayments;
@@ -851,7 +851,7 @@ BEGIN
     WHERE   p.PaymentId = @PaymentId;
     CLOSE SYMMETRIC KEY SK_PayToken;
 END
-
+```
 ## 8. Consultas misceláneas
 
 ## 9. Concurrencia
@@ -871,7 +871,8 @@ Scripts & Queries para evaluar el comportamiento de **Caso 2** bajo alta con
 * Ventana‑1 → `EXEC dbo.DL_A`  
 * Ventana‑2 → `EXEC dbo.DL_B`  
 > El cruce SELECT → UPDATE / UPDATE → SELECT provoca el dead‑lock.
-
+> 
+```sql
 IF OBJECT_ID('dbo.DL_A','P') IS NOT NULL DROP PROCEDURE dbo.DL_A;
 GO
 CREATE PROCEDURE dbo.DL_A AS
@@ -895,19 +896,21 @@ BEGIN
     COMMIT;
 END;
 GO
+```
 
 ### 9.3 Dead‑lock en cascada
 **Uso**: tres conexiones independientes (A → B → C).
 Demuestra que pueden formarse ciclos A bloquea B, B bloquea C, C bloquea A.
 
+```sql
 IF OBJECT_ID('dbo.Cascade_A','P') IS NOT NULL DROP PROCEDURE dbo.Cascade_A;
 GO
 CREATE PROCEDURE dbo.Cascade_A AS
 BEGIN
     BEGIN TRAN;
-        UPDATE dbo.SocaiSubscriptions SET amount = amount WHERE SubscriptionId = 1;   -- bloquea X
+        UPDATE dbo.SocaiSubscriptions SET amount = amount WHERE SubscriptionId = 1;   
         WAITFOR DELAY '00:00:05';
-        SELECT 1 FROM dbo.SocaiPayments WHERE PaymentId = 1;                          -- lee Y
+        SELECT 1 FROM dbo.SocaiPayments WHERE PaymentId = 1;                         
     COMMIT;
 END;
 GO
@@ -917,9 +920,9 @@ GO
 CREATE PROCEDURE dbo.Cascade_B AS
 BEGIN
     BEGIN TRAN;
-        UPDATE dbo.SocaiPayments SET amount = amount WHERE PaymentId = 1;             -- bloquea Y
+        UPDATE dbo.SocaiPayments SET amount = amount WHERE PaymentId = 1;             
         WAITFOR DELAY '00:00:05';
-        SELECT 1 FROM dbo.SocaiCommerceSettlement WHERE CommerceId = 1;               -- lee Z
+        SELECT 1 FROM dbo.SocaiCommerceSettlement WHERE CommerceId = 1;              
     COMMIT;
 END;
 GO
@@ -929,16 +932,16 @@ GO
 CREATE PROCEDURE dbo.Cascade_C AS
 BEGIN
     BEGIN TRAN;
-        UPDATE dbo.SocaiCommerceSettlement SET totalNet = totalNet WHERE CommerceId = 1; -- bloquea Z
+        UPDATE dbo.SocaiCommerceSettlement SET totalNet = totalNet WHERE CommerceId = 1; 
         WAITFOR DELAY '00:00:05';
-        SELECT 1 FROM dbo.SocaiSubscriptions WHERE SubscriptionId = 1;                   -- lee X
+        SELECT 1 FROM dbo.SocaiSubscriptions WHERE SubscriptionId = 1;                   
     COMMIT;
 END;
 GO
-
+```
 ### 9.4 Demo de niveles de aislamiento
 Permite repetir la misma lectura con distintos isolation levels y observar diferencias.
-
+```sql
 IF OBJECT_ID('dbo.demo_isolation','P') IS NOT NULL DROP PROCEDURE dbo.demo_isolation;
 GO
 CREATE PROCEDURE dbo.demo_isolation
@@ -957,10 +960,10 @@ BEGIN
     ROLLBACK;
 END;
 GO
-
+```
 ### 9.5 Cursor de actualización fila‑a‑fila
 Ejemplo para que el equipo de desarrollo entienda cuándo un cursor bloquea registros.
-
+```sql
 IF OBJECT_ID('dbo.demo_cursorRegeneraSaldo','P') IS NOT NULL
     DROP PROCEDURE dbo.demo_cursorRegeneraSaldo;
 GO
@@ -987,11 +990,11 @@ BEGIN
     CLOSE c; DEALLOCATE c;
 END;
 GO
-
+```
 ### 9.6 Transacción de volumen / Benchmark TPS
 La “transacción de volumen” de Soltura es registrar una transacción de pago (INSERT INTO SocaiTransactions).
 El procedimiento inserta en bucle durante n segundos y reporta TPS promedio.
-
+```sql
 IF OBJECT_ID('dbo.bench_volumenPago','P') IS NOT NULL
     DROP PROCEDURE dbo.bench_volumenPago;
 GO
@@ -1018,10 +1021,10 @@ BEGIN
         + '  (' + CONVERT(varchar,@total) + ' transacciones)';
 END;
 GO
-
+```
 ### 9.7 Vista auxiliar
 Muestra, por sesión de usuario, el nivel de aislamiento actualmente activo.
-
+```sql
 IF OBJECT_ID('dbo.vw_trxIsolation','V') IS NOT NULL
     DROP VIEW dbo.vw_trxIsolation;
 GO
@@ -1038,7 +1041,7 @@ SELECT  session_id,
 FROM sys.dm_exec_sessions
 WHERE is_user_process = 1;
 GO
-
+```
 ## 9.8 Cómo ejecutar las pruebas
 
 | Objetivo                         | Sesión A (ventana 1)            | Sesión B (ventana 2)            | Sesión C (ventana 3) / Observación |
@@ -1057,3 +1060,4 @@ GO
 ```sql
 -- Activar versión optimista para lecturas
 ALTER DATABASE Caso2 SET READ_COMMITTED_SNAPSHOT ON;
+```
