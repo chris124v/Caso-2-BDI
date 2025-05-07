@@ -769,12 +769,12 @@ Esta seria una tabla intermdia entre las suscripciones y los horarios en donde s
 
 
 
-#### 7. Mantenimiento de la Seguridad  
+## 7. Mantenimiento de la Seguridad  
 *(corresponde al script `Scripts&Queries Mantenimiento de Seguridad.sql`)*
 
 ---
 
-#### 7.1 Logins (en *master*)
+### 7.1 Logins (en *master*)
 
 | Login | Propósito | Contraseña demo ¹ |
 |-------|-----------|-------------------|
@@ -787,7 +787,7 @@ Esta seria una tabla intermdia entre las suscripciones y los horarios en donde s
 
 ---
 
-#### 7.2 Usuarios (en **Caso2**)
+### 7.2 Usuarios (en **Caso2**)
 
 | Usuario BD | Login asociado | Uso |
 |------------|----------------|-----|
@@ -797,7 +797,7 @@ Esta seria una tabla intermdia entre las suscripciones y los horarios en donde s
 
 ---
 
-#### 7.3 Roles y membresías
+### 7.3 Roles y membresías
 
 | Rol | Objetivo | Miembros |
 |-----|----------|----------|
@@ -806,7 +806,7 @@ Esta seria una tabla intermdia entre las suscripciones y los horarios en donde s
 
 ---
 
-#### 7.4 Modelo de Permisos
+### 7.4 Modelo de Permisos
 
 | Principal | `CONNECT` | `SELECT` catálogos | `SELECT/CRUD` liquidaciones | `EXEC` SP de pagos |
 |-----------|-----------|--------------------|-----------------------------|--------------------|
@@ -816,7 +816,7 @@ Esta seria una tabla intermdia entre las suscripciones y los horarios en donde s
 
 ---
 
-#### 7.5 Row‑Level Security (RLS)
+### 7.5 Row‑Level Security (RLS)
 
 | Elemento | Detalle |
 |----------|---------|
@@ -826,7 +826,7 @@ Esta seria una tabla intermdia entre las suscripciones y los horarios en donde s
 
 ---
 
-#### 7.6 Infra‑estructura Criptográfica
+### 7.6 Infra‑estructura Criptográfica
 
 | Objeto | Tipo / Algoritmo | Protegido por |
 |--------|------------------|---------------|
@@ -840,7 +840,7 @@ Los *chargeToken* de la tabla `SocaiPayments.chargeToken` se cifran con
 
 ---
 
-#### 7.7 Procedimiento seguro de descifrado
+### 7.7 Procedimiento seguro de descifrado
 
 ```sql
 CREATE PROCEDURE dbo.SocaiSP_GetToken @PaymentId int AS
