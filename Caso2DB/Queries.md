@@ -2809,3 +2809,781 @@ ALTER DATABASE Caso2 SET READ_COMMITTED_SNAPSHOT ON;
 ```
 
 ## 6. Noticias de Ultima Hora (Barquero)
+## Migración de datos de Payment Assistant a SQL Server mediante Python
+
+### 6.1. Contexto de la adquisición
+
+Soltura ha adquirido "Payment Assistant" como parte de su estrategia de crecimiento en Costa Rica. Se ha decidido migrar completamente los usuarios y sus suscripciones a la plataforma Soltura, ofreciéndoles los mismos servicios que ya tenían más dos servicios adicionales por el mismo precio.
+
+Entre las opciones disponibles para realizar esta migración (DBT, Logstash, SQL Server Integration Services), el equipo técnico ha optado por implementar la migración mediante **Python con Pandas**, desarrollando un notebook Jupyter que maneja todo el proceso de extracción, transformación y carga de datos.
+
+### 6.2. Proceso de migración con Python
+
+La migración se implementa en el archivo `migracionBD.ipynb`, un notebook de Jupyter que utiliza librerías como pandas, pyodbc y pymysql para manejar la migración de datos entre diferentes sistemas de bases de datos.
+
+#### 6.2.1 Configuración de conexiones
+
+El notebook configura las conexiones tanto para la base de datos de origen (MySQL - Payment Assistant) como para la de destino (SQL Server - Soltura):
+
+```python
+# Configuración de conexión a la base de datos fuente (MySQL) - Payment Assistant
+mysql_config = {
+    'host': 'localhost',
+    'user': 'root',
+    'password': 'password',
+    'database': 'database'  
+}
+
+# Configuración de conexión a la base de datos destino (SQL Server) - Soltura
+sqlserver_config = {
+    'driver': '{ODBC Driver 17 for SQL Server}',
+    'server': 'localhost',
+    'database': 'Caso2',
+    'trusted_connection': 'yes'
+}
+
+# Funciones de conexión
+def connect_mysql():
+    try:
+        conn = pymysql.connect(
+            host=mysql_config['host'],
+            user=mysql_config['user'],
+            password=mysql_config['password'],
+            database=mysql_config['database']
+        )
+        return conn
+    except Exception as e:
+        print(f"Error conectando a MySQL: {e}")
+        return None
+
+def connect_sqlserver():
+    try:
+        conn = pyodbc.connect(
+            f"DRIVER={sqlserver_config['driver']};"
+            f"SERVER={sqlserver_config['server']};"
+            f"DATABASE={sqlserver_config['database']};"
+            f"Trusted_Connection={sqlserver_config['trusted_connection']};"
+        )
+        return conn
+    except Exception as e:
+        print(f"Error conectando a SQL Server: {e}")
+        return None
+```
+
+#### 6.2.2 Proceso ETL (Extracción, Transformación y Carga)
+
+El proceso de migración sigue el modelo ETL estándar, con funciones específicas para cada fase:
+
+##### a) Extracción de datos de MySQL (Payment Assistant)
+
+```python
+# Función para extraer usuarios de Payment Assistant
+def extract_users_from_source():
+    conn = connect_mysql()
+    if not conn:
+        return None
+    
+    try:
+        # Usamos la estructura real de las tablas de Payment Assistant
+        query = """
+        SELECT u.userid, u.name, ui.value as email, ua.addressid, u.fecha_registro, u.isactive,
+               us.usersubsid, us.plansid, us.start_date, us.end_date, us.status, us.autorenew,
+               pp.billingperiod as payment_frequency, pp.price, c.acronym as currency
+        FROM users u
+        LEFT JOIN contactinfoperperson ui ON u.userid = ui.userid
+        LEFT JOIN contactinfotype ct ON ui.contactinfotypeid = ct.contactinfotypeid AND ct.name = 'Email'
+        LEFT JOIN useraddresses ua ON u.userid = ua.userid
+        LEFT JOIN userssubscriptions us ON u.userid = us.userid
+        LEFT JOIN planpricing pp ON us.priceid = pp.priceid
+        LEFT JOIN currencies c ON pp.currencyId = c.currencyId
+        WHERE u.isactive = 1
+        """
+        
+        df_users = pd.read_sql(query, conn)
+        return df_users
+    except Exception as e:
+        print(f"Error extrayendo usuarios: {e}")
+        return None
+    finally:
+        conn.close()
+```
+
+El notebook implementa funciones similares para extraer otros datos importantes:
+
+```python
+def extract_plans_from_source():
+    # Extrae planes de suscripción
+    
+def extract_user_permissions():
+    # Extrae permisos y roles de usuarios
+    
+def extract_user_contact_info():
+    # Extrae información de contacto adicional
+    
+def extract_user_addresses():
+    # Extrae direcciones de usuarios
+    
+def extract_user_payment_methods():
+    # Extrae métodos de pago de usuarios
+```
+
+##### b) Transformación y mapeo de datos
+
+La función clave para mapear planes del sistema adquirido a Soltura, creando planes equivalentes con beneficios adicionales:
+
+```python
+def map_plans_to_soltura(df_plans):
+    """
+    Mapea los planes del sistema fuente a los planes de Soltura
+    Se crean nuevos planes en Soltura que incluyen lo del plan original más dos beneficios adicionales
+    """
+    conn = connect_sqlserver()
+    if not conn:
+        return None, None
+    
+    try:
+        # Obtener planes actuales de Soltura
+        cursor = conn.cursor()
+        cursor.execute("SELECT SubscriptionId, Name, Description, amount, CurrencyTypeId FROM SocaiSubscriptions")
+        soltura_plans = cursor.fetchall()
+        
+        # Mapear planes
+        plan_mapping = {}
+        new_plans = []
+        
+        for idx, plan in df_plans.iterrows():
+            # Crear un nuevo plan en Soltura basado en el plan original
+            new_plan_name = f"Migrado {plan['name']} Plus"
+            new_plan_desc = f"Plan migrado desde {mysql_config['database']} con beneficios adicionales. {plan['description']}"
+            
+            # Los planes migrados serán personalizables
+            is_customizable = 1
+            
+            # El monto será similar al original pero ajustado al tipo de moneda de Soltura
+            amount = float(plan['price'])
+            
+            # Determinamos el CurrencyTypeId basado en la moneda del plan original
+            currency_type_id = 3  # Default: CRC
+            if plan['currency'] == 'USD':
+                currency_type_id = 1
+            elif plan['currency'] == 'EUR':
+                currency_type_id = 2
+            
+            # Insertar el nuevo plan en Soltura
+            sql = """
+            INSERT INTO SocaiSubscriptions (Name, Description, isCustomizable, isActive, createdAt, updatedAt, amount, CurrencyTypeId)
+            VALUES (?, ?, ?, 1, GETDATE(), GETDATE(), ?, ?)
+            """
+            cursor.execute(sql, (new_plan_name, new_plan_desc, is_customizable, amount, currency_type_id))
+            
+            # Obtener el ID del plan recién insertado
+            cursor.execute("SELECT @@IDENTITY")
+            new_plan_id = cursor.fetchone()[0]
+            
+            # Guardar la relación entre planes originales y nuevos
+            plan_mapping[plan['plansid']] = new_plan_id
+            new_plans.append({
+                'source_plan_id': plan['plansid'],
+                'soltura_plan_id': new_plan_id,
+                'name': new_plan_name
+            })
+            
+            # Agregar beneficios al nuevo plan
+            # [Código de procesamiento de características originales]
+            
+            # Agregar dos beneficios adicionales (como prometió Soltura)
+            cursor.execute("""
+            SELECT TOP 2 f.FeatureId, f.UnitTypeId 
+            FROM SocaiPlanFeatures f
+            WHERE f.FeatureId NOT IN (
+                SELECT fs.PlanFeatureId 
+                FROM SocaiFeaturesSubscriptions fs 
+                WHERE fs.SubscriptionId = ?
+            )
+            ORDER BY NEWID()
+            """, (new_plan_id,))
+            
+            additional_features = cursor.fetchall()
+            
+            # Para cada característica adicional
+            for feature in additional_features:
+                feature_id = feature[0]
+                unit_type_id = feature[1]
+                
+                # Seleccionamos un tipo de servicio apropiado
+                cursor.execute("SELECT TOP 1 ServiceTypeId FROM SocaiServiceTypes ORDER BY NEWID()")
+                service_type_id = cursor.fetchone()[0]
+                
+                # Insertamos la relación con un valor mayor para destacar que es un beneficio adicional
+                sql = """
+                INSERT INTO SocaiFeaturesSubscriptions 
+                (PlanFeatureId, SubscriptionId, Quantity, UnitTypeId, CreatedAt, UpdatedAt, ServiceTypeId, MemberCount, IsMemberSpecific)
+                VALUES (?, ?, 2.0, ?, GETDATE(), GETDATE(), ?, 1, 0)
+                """
+                cursor.execute(sql, (feature_id, new_plan_id, unit_type_id, service_type_id))
+        
+        conn.commit()
+        return plan_mapping, new_plans
+    except Exception as e:
+        conn.rollback()
+        print(f"Error mapeando planes: {e}")
+        return None, None
+    finally:
+        conn.close()
+```
+
+##### c) Migración de usuarios y suscripciones
+
+La función para migrar usuarios y sus suscripciones a Soltura:
+
+```python
+def migrate_users_and_subscriptions(df_users, plan_mapping, df_contact_info, df_addresses):
+    """
+    Migra los usuarios y sus suscripciones a Soltura utilizando los datos reales de Payment Assistant
+    """
+    conn = connect_sqlserver()
+    if not conn:
+        return None
+    
+    try:
+        cursor = conn.cursor()
+        
+        # Crear tabla para mapeo de usuarios si no existe
+        cursor.execute("""
+        IF NOT EXISTS (SELECT * FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'SocaiUserMigrations')
+        BEGIN
+            CREATE TABLE SocaiUserMigrations (
+                MigrationId INT IDENTITY(1,1) PRIMARY KEY,
+                SourceUserId INT NOT NULL,
+                SolturaUserId INT NOT NULL,
+                SourceSystem VARCHAR(50) NOT NULL,
+                MigrationDate DATETIME NOT NULL,
+                ResetPassword BIT NOT NULL DEFAULT 1,
+                OriginalEmail VARCHAR(255) NULL
+            )
+        END
+        """)
+        
+        # Para cada usuario
+        user_mapping = {}
+        active_subscriptions = 0
+        annual_subscriptions = 0
+        
+        # Agrupar usuarios por userid para evitar duplicados
+        grouped_users = df_users.groupby('userid').first().reset_index()
+        
+        for idx, user in grouped_users.iterrows():
+            # Verificamos si el usuario ya existe en Soltura (por email)
+            if pd.notna(user['email']):
+                cursor.execute("SELECT UserId FROM SocaiUsers WHERE Email = ?", (user['email'],))
+                existing_user = cursor.fetchone()
+            else:
+                existing_user = None
+            
+            if existing_user:
+                # Si existe, lo mapeamos
+                user_mapping[user['userid']] = existing_user[0]
+                
+                # Registramos el mapeo
+                cursor.execute("""
+                INSERT INTO SocaiUserMigrations (SourceUserId, SolturaUserId, SourceSystem, MigrationDate, ResetPassword, OriginalEmail)
+                VALUES (?, ?, ?, GETDATE(), 1, ?)
+                """, (user['userid'], existing_user[0], mysql_config['database'], user['email']))
+            else:
+                # Si no existe, creamos un nuevo usuario
+                # [Código para crear nuevo usuario y registrar mapeo...]
+                
+                # Si el usuario tiene una suscripción activa, la migramos
+                if pd.notna(user['usersubsid']) and pd.notna(user['plansid']) and user['plansid'] in plan_mapping:
+                    # Obtenemos el ID del plan en Soltura
+                    soltura_plan_id = plan_mapping[user['plansid']]
+                    
+                    # Determinamos las fechas de inicio y fin
+                    if pd.notna(user['start_date']):
+                        start_date = user['start_date']
+                    else:
+                        start_date = datetime.now() - timedelta(days=random.randint(1, 15))
+                    
+                    if pd.notna(user['end_date']):
+                        end_date = user['end_date']
+                    else:
+                        # Si es plan mensual, la fecha de fin es 30 días después del inicio
+                        # Si es plan anual, la fecha de fin es 365 días después del inicio
+                        if user['payment_frequency'] == 'monthly':
+                            end_date = start_date + timedelta(days=30)
+                            active_subscriptions += 1
+                        else:  # anual
+                            end_date = start_date + timedelta(days=365)
+                            annual_subscriptions += 1
+                            active_subscriptions += 1
+                    
+                    # Insertamos la suscripción
+                    sql = """
+                    INSERT INTO SocaiSubscriptionUser (enable, startDateTime, endDateTime, UserId, SubscriptionId)
+                    VALUES (1, ?, ?, ?, ?)
+                    """
+                    cursor.execute(sql, (start_date, end_date, new_user_id, soltura_plan_id))
+        
+        conn.commit()
+        print(f"Migración completa: {len(user_mapping)} usuarios migrados.")
+        print(f"Suscripciones activas: {active_subscriptions}")
+        print(f"Suscripciones anuales: {annual_subscriptions}")
+        print(f"Suscripciones mensuales: {active_subscriptions - annual_subscriptions}")
+        return user_mapping
+    except Exception as e:
+        conn.rollback()
+        print(f"Error migrando usuarios: {e}")
+        return None
+    finally:
+        conn.close()
+```
+
+##### d) Migración de permisos y métodos de pago
+
+```python
+def migrate_user_permissions(user_permissions, user_mapping):
+    """
+    Migra los permisos de los usuarios a Soltura
+    """
+    # [Código que implementa la migración de permisos...]
+
+def migrate_payment_methods(df_payment_methods, user_mapping):
+    """
+    Migra los métodos de pago de los usuarios a Soltura
+    """
+    # [Código que implementa la migración de métodos de pago...]
+```
+
+##### e) Proceso de generación de emails para reseteo de contraseñas
+
+Una parte importante de la migración es la generación de emails para que los usuarios restablezcan sus contraseñas, ya que no se migran las contraseñas originales:
+
+```python
+def generate_password_reset_emails():
+    """
+    Genera contenido para emails de restablecimiento de contraseña
+    para los usuarios migrados
+    """
+    conn = connect_sqlserver()
+    if not conn:
+        return False
+    
+    try:
+        cursor = conn.cursor()
+        
+        # Obtener usuarios con reseteo pendiente
+        cursor.execute("""
+        SELECT um.SolturaUserId, u.Email, u.Name, um.OriginalEmail
+        FROM SocaiUserMigrations um
+        JOIN SocaiUsers u ON um.SolturaUserId = u.UserId
+        WHERE um.SourceSystem = ? AND um.ResetPassword = 1
+        """, (mysql_config['database'],))
+        
+        users_to_reset = cursor.fetchall()
+        
+        # Crear contenido para emails
+        reset_emails_content = []
+        for user in users_to_reset:
+            user_id = user[0]
+            email = user[1]
+            name = user[2]
+            original_email = user[3] if user[3] else email
+            
+            # Generar token único para este usuario (simulado)
+            reset_token = hashlib.sha256(f"{user_id}_{datetime.now()}".encode()).hexdigest()[:20]
+            
+            # Preparar contenido del email
+            email_content = {
+                "to": email,
+                "subject": "Bienvenido a Soltura - Establece tu nueva contraseña",
+                "body": f"""
+                <html>
+                <body>
+                    <h2>Hola {name},</h2>
+                    
+                    <p>¡Bienvenido a Soltura! Tu cuenta de {mysql_config['database']} ha sido migrada exitosamente.</p>
+                    
+                    <p>Como parte del proceso de migración, necesitas establecer una nueva contraseña para acceder a todos tus beneficios, que ahora incluyen dos servicios adicionales sin costo extra.</p>
+                    
+                    <p>Para establecer tu contraseña, haz clic en el siguiente enlace:</p>
+                    
+                    <p><a href="https://soltura.com/reset-password?token={reset_token}&email={email}">Establecer mi nueva contraseña</a></p>
+                    
+                    <p>Este enlace expirará en 48 horas.</p>
+                    
+                    <p>Si no solicitaste este cambio o tienes alguna pregunta, por favor contáctanos respondiendo a este correo o llamando a nuestro servicio al cliente.</p>
+                    
+                    <p>Saludos,<br>
+                    El equipo de Soltura</p>
+                </body>
+                </html>
+                """
+            }
+            
+            reset_emails_content.append(email_content)
+        
+        # Guardar los emails en un archivo JSON para procesamiento posterior
+        with open("reset_password_emails.json", "w", encoding="utf-8") as f:
+            json.dump(reset_emails_content, f, ensure_ascii=False, indent=4)
+            
+        print(f"Se generaron {len(reset_emails_content)} emails de restablecimiento de contraseña.")
+        print("Los contenidos se guardaron en 'reset_password_emails.json' para su envío.")
+        
+        return True
+    except Exception as e:
+        print(f"Error generando emails de restablecimiento: {e}")
+        return False
+    finally:
+        conn.close()
+```
+
+#### 6.2.3 Verificación del estado de la migración
+
+Al final del proceso, el código implementa una verificación del estado general de la migración:
+
+```python
+def check_migration_status():
+    """
+    Verifica y muestra el estado de la migración:
+    - Total de usuarios migrados
+    - Distribución de usuarios por tipo de suscripción
+    - Porcentaje de usuarios con credenciales reseteo pendiente
+    """
+    conn_sql = connect_sqlserver()
+    if not conn_sql:
+        return False
+    
+    try:
+        cursor = conn_sql.cursor()
+        
+        # Verificar total de usuarios migrados
+        cursor.execute("""
+        SELECT COUNT(*) FROM SocaiUserMigrations
+        WHERE SourceSystem = ?
+        """, (mysql_config['database'],))
+        
+        total_migrated = cursor.fetchone()[0]
+        
+        # Verificar usuarios con reseteo de contraseña pendiente
+        cursor.execute("""
+        SELECT COUNT(*) FROM SocaiUserMigrations
+        WHERE SourceSystem = ? AND ResetPassword = 1
+        """, (mysql_config['database'],))
+        
+        reset_pending = cursor.fetchone()[0]
+        
+        # Verificar distribución de suscripciones
+        cursor.execute("""
+        SELECT s.Name AS PlanName, COUNT(su.SubscriptionUserId) AS UserCount
+        FROM SocaiUserMigrations um
+        JOIN SocaiUsers u ON um.SolturaUserId = u.UserId
+        JOIN SocaiSubscriptionUser su ON u.UserId = su.UserId
+        JOIN SocaiSubscriptions s ON su.SubscriptionId = s.SubscriptionId
+        WHERE um.SourceSystem = ?
+        GROUP BY s.Name
+        ORDER BY UserCount DESC
+        """, (mysql_config['database'],))
+        
+        subscription_distribution = cursor.fetchall()
+        
+        # Imprimir resultados
+        print("\n=== ESTADO DE LA MIGRACIÓN ===")
+        print(f"Total de usuarios migrados: {total_migrated}")
+        if total_migrated > 0:
+            print(f"Usuarios con reseteo de contraseña pendiente: {reset_pending} ({reset_pending/total_migrated*100:.2f}%)")
+            
+            print("\nDistribución de suscripciones:")
+            for plan in subscription_distribution:
+                print(f"  - {plan[0]}: {plan[1]} usuarios")
+        
+        return True
+    except Exception as e:
+        print(f"Error verificando estado de migración: {e}")
+        return False
+    finally:
+        conn_sql.close()
+```
+
+#### 6.2.4 Función principal que coordina la ejecución
+
+La función `main()` orquesta todo el proceso de migración, llamando a las funciones en el orden correcto:
+
+```python
+def main():
+    print("Iniciando proceso de migración de datos a Soltura...")
+    
+    # 1. Extraer datos del sistema fuente
+    print("Extrayendo usuarios...")
+    df_users = extract_users_from_source()
+    if df_users is None:
+        print("Error: No se pudieron extraer los usuarios. Abortando.")
+        return
+    
+    print(f"Se encontraron {len(df_users)} usuarios para migrar.")
+    
+    print("Extrayendo planes...")
+    df_plans = extract_plans_from_source()
+    if df_plans is None:
+        print("Error: No se pudieron extraer los planes. Abortando.")
+        return
+    
+    print(f"Se encontraron {len(df_plans)} planes para migrar.")
+    
+    print("Extrayendo permisos de usuarios...")
+    user_permissions = extract_user_permissions()
+    if user_permissions is None:
+        print("Error: No se pudieron extraer los permisos. Abortando.")
+        return
+    
+    print("Extrayendo información de contacto...")
+    df_contact_info = extract_user_contact_info()
+    if df_contact_info is None:
+        print("Error: No se pudo extraer la información de contacto. Abortando.")
+        return
+    
+    print("Extrayendo direcciones...")
+    df_addresses = extract_user_addresses()
+    if df_addresses is None:
+        print("Error: No se pudieron extraer las direcciones. Abortando.")
+        return
+    
+    print("Extrayendo métodos de pago...")
+    df_payment_methods = extract_user_payment_methods()
+    if df_payment_methods is None:
+        print("Error: No se pudieron extraer los métodos de pago. Abortando.")
+        return
+    
+    # 2. Mapear y migrar planes
+    print("Mapeando planes a Soltura...")
+    plan_mapping, new_plans = map_plans_to_soltura(df_plans)
+    if plan_mapping is None:
+        print("Error: No se pudieron mapear los planes. Abortando.")
+        return
+    
+    print(f"Se mapearon {len(plan_mapping)} planes.")
+    
+    # 3. Migrar usuarios y sus suscripciones
+    print("Migrando usuarios y suscripciones...")
+    user_mapping = migrate_users_and_subscriptions(df_users, plan_mapping, df_contact_info, df_addresses)
+    if user_mapping is None:
+        print("Error: No se pudieron migrar los usuarios. Abortando.")
+        return
+    
+    print(f"Se migraron {len(user_mapping)} usuarios.")
+    
+    # 4. Migrar permisos de usuarios
+    print("Migrando permisos de usuarios...")
+    success = migrate_user_permissions(user_permissions, user_mapping)
+    if not success:
+        print("Error: No se pudieron migrar los permisos.")
+    
+    # 5. Migrar métodos de pago
+    print("Migrando métodos de pago...")
+    success = migrate_payment_methods(df_payment_methods, user_mapping)
+    if not success:
+        print("Error: No se pudieron migrar los métodos de pago.")
+    
+    # 6. Crear banners de marketing
+    print("Creando banners de marketing...")
+    success = create_marketing_banners(mysql_config['database'])
+    if not success:
+        print("Error: No se pudieron crear los banners de marketing.")
+    
+    # 7. Generar emails de restablecimiento de contraseña
+    print("Generando emails de restablecimiento de contraseña...")
+    generate_password_reset_emails()
+    
+    # 8. Verificar estado final de la migración
+    check_migration_status()
+    
+    print("\nProceso de migración completado.")
+    
+    # Resumen
+    print("\n=== Resumen de la migración ===")
+    print(f"Sistema origen: {mysql_config['database']}")
+    print(f"Usuarios migrados: {len(user_mapping)}")
+    print(f"Planes migrados: {len(plan_mapping)}")
+    print("Nuevos planes creados:")
+    for plan in new_plans:
+        print(f"  - {plan['name']} (ID: {plan['soltura_plan_id']})")
+```
+
+### 6.3. Características clave de la implementación
+
+#### 6.3.1 Tabla de mapeo para usuarios
+
+Uno de los requerimientos importantes era crear un mecanismo para mantener la correspondencia entre usuarios del sistema adquirido y usuarios en Soltura. Esto se implementa mediante la creación de una tabla `SocaiUserMigrations`:
+
+```sql
+CREATE TABLE SocaiUserMigrations (
+    MigrationId INT IDENTITY(1,1) PRIMARY KEY,
+    SourceUserId INT NOT NULL,           -- ID en Payment Assistant
+    SolturaUserId INT NOT NULL,          -- ID en Soltura
+    SourceSystem VARCHAR(50) NOT NULL,   -- Nombre del sistema de origen
+    MigrationDate DATETIME NOT NULL,     -- Fecha de migración
+    ResetPassword BIT NOT NULL DEFAULT 1,-- Flag para reseteo de contraseña
+    OriginalEmail VARCHAR(255) NULL      -- Email original en Payment Assistant
+)
+```
+
+Esta tabla permite:
+- Mantener la trazabilidad entre usuarios de ambos sistemas
+- Identificar usuarios migrados para mostrarles banners específicos
+- Gestionar el proceso de reseteo de contraseñas
+- Permitir futuras integraciones o migraciones adicionales
+
+#### 6.3.2 Creación de nuevos planes con beneficios adicionales
+
+El sistema crea nuevos planes en Soltura basados en los planes existentes en Payment Assistant, pero con beneficios adicionales:
+
+1. Se preservan todos los beneficios originales del plan de Payment Assistant
+2. Se añaden automáticamente dos beneficios adicionales para cumplir con el requisito de ofrecer servicios extra sin costo adicional
+3. Los planes nuevos tienen un nombre que indica su origen ("Migrado [Nombre Original] Plus")
+4. Se mantienen los mismos precios originales, con conversión de moneda si es necesario
+
+#### 6.3.3 Gestión de contraseñas y seguridad
+
+Como fue requerido, las contraseñas no se migran. En su lugar:
+
+1. Las cuentas migradas tienen una contraseña temporal (hash aleatorio)
+2. Se marcan con un flag `ResetPassword = 1` en la tabla de mapeo
+3. Se generan tokens de reseteo únicos para cada usuario
+4. Se crean emails personalizados con enlaces para establecer nuevas contraseñas
+5. Estos emails se almacenan en formato JSON para su posterior envío
+
+#### 6.3.4 Preservación de información y relaciones
+
+La migración preserva cuidadosamente:
+
+1. **Información de contacto**: email, teléfono y direcciones
+2. **Suscripciones activas**: se mantienen las fechas de inicio/fin y se respeta si son mensuales o anuales
+3. **Permisos de usuario**: se mapean a roles y permisos equivalentes en Soltura
+4. **Métodos de pago**: se migran con información enmascarada por seguridad
+
+### 6.4. Métricas y estadísticas de la migración
+
+La implementación incluye funciones para verificar y reportar el estado de la migración:
+
+- Total de usuarios migrados
+- Distribución entre suscripciones mensuales y anuales
+- Cantidad de planes creados
+- Distribución de usuarios por plan
+- Porcentaje de usuarios con reseteo de contraseña pendiente
+
+### 6.5. Mejoras potenciales para un entorno de producción
+
+Para una implementación en producción, podrían considerarse las siguientes mejoras:
+
+1. **Procesamiento por lotes**: Migrar usuarios en lotes de 100-200 para reducir el uso de memoria y mejorar la gestión de errores.
+
+2. **Logs detallados**: Implementar un sistema de logs más robusto que registre cada operación y su resultado:
+
+```python
+def log_migration_step(step_name, source_id, destination_id, status, details=None):
+    """
+    Registra cada paso de la migración en una tabla de logs
+    """
+    conn = connect_sqlserver()
+    try:
+        cursor = conn.cursor()
+        sql = """
+        INSERT INTO SocaiMigrationLogs 
+        (StepName, SourceId, DestinationId, Status, Details, LogDate)
+        VALUES (?, ?, ?, ?, ?, GETDATE())
+        """
+        cursor.execute(sql, (step_name, source_id, destination_id, status, 
+                            json.dumps(details) if details else None))
+        conn.commit()
+    except Exception as e:
+        print(f"Error logging migration step: {e}")
+    finally:
+        conn.close()
+```
+
+3. **Proceso de rollback**: Implementar una función para deshacer la migración en caso de problemas:
+
+```python
+def rollback_migration(migration_batch_id):
+    """
+    Deshace una migración específica en caso de problemas
+    """
+    conn = connect_sqlserver()
+    try:
+        cursor = conn.cursor()
+        # Identificar usuarios migrados en este lote
+        cursor.execute("""
+        SELECT SolturaUserId FROM SocaiUserMigrations 
+        WHERE MigrationBatchId = ?
+        """, (migration_batch_id,))
+        
+        users_to_rollback = [row[0] for row in cursor.fetchall()]
+        
+        # Eliminar suscripciones
+        for user_id in users_to_rollback:
+            cursor.execute("""
+            DELETE FROM SocaiSubscriptionUser WHERE UserId = ?
+            """, (user_id,))
+        
+        # Eliminar usuarios
+        cursor.execute("""
+        DELETE FROM SocaiUsers 
+        WHERE UserId IN (SELECT SolturaUserId FROM SocaiUserMigrations WHERE MigrationBatchId = ?)
+        """, (migration_batch_id,))
+        
+        # Eliminar registros de mapeo
+        cursor.execute("""
+        DELETE FROM SocaiUserMigrations WHERE MigrationBatchId = ?
+        """, (migration_batch_id,))
+        
+        conn.commit()
+        return True
+    except Exception as e:
+        conn.rollback()
+        print(f"Error en rollback de migración: {e}")
+        return False
+    finally:
+        conn.close()
+```
+
+4. **Implementación de transacciones**: Mejorar la gestión de transacciones para garantizar la integridad de los datos:
+
+```python
+def migrate_batch_with_transaction(batch_users):
+    """
+    Migra un lote de usuarios dentro de una única transacción
+    """
+    conn = connect_sqlserver()
+    try:
+        cursor = conn.cursor()
+        cursor.execute("BEGIN TRANSACTION")
+        
+        # Generar ID de lote para seguimiento
+        batch_id = str(uuid.uuid4())
+        
+        # Procesar cada usuario en el lote
+        for user in batch_users:
+            # Código de migración para este usuario
+            # ...
+        
+        # Si todo fue exitoso, confirmar la transacción
+        cursor.execute("COMMIT TRANSACTION")
+        return True
+    except Exception as e:
+        cursor.execute("ROLLBACK TRANSACTION")
+        print(f"Error en migración de lote: {e}")
+        return False
+    finally:
+        conn.close()
+```
+
+### 6.6. Conclusión
+
+La implementación de la migración mediante Python con Pandas demuestra varias ventajas:
+
+1. **Flexibilidad**: El código puede adaptarse fácilmente a diferentes estructuras de datos de origen y destino.
+2. **Trazabilidad**: Se mantiene un registro claro de la correspondencia entre usuarios y planes de ambos sistemas.
+3. **Enriquecimiento**: Se añaden beneficios adicionales a los planes migrados según lo requerido.
+4. **Seguridad**: Se implementa un proceso seguro para la gestión de contraseñas.
+5. **Transparencia**: El proceso genera métricas y estadísticas detalladas sobre el resultado de la migración.
+
+Esta solución cumple con todos los requisitos especificados por el CTO de Soltura para la migración de datos de Payment Assistant a la plataforma Soltura, facilitando la transición para los usuarios y asegurando que continúen recibiendo al menos los mismos servicios más beneficios adicionales por el mismo precio.
