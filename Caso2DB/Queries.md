@@ -941,6 +941,200 @@ select* from SocaiCurrencyTypes;
 |-------------------|-----------|---------|--------------|---------|---------------------|----------------|------------------------|-----------|
 | 1 | 2025-05-05 14:01:09.243 | 2025-05-05 14:01:09.243 | 540.25 | 1 | 1 | 2 | 0 | 1 |
 
+#### Insercion de Resultados de Pago
+Varios mensajes de los metodos de pago. 
+```sql
+insert into SocaiResultPayment (name, description)
+
+values
+    ('Exitoso', 'El pago se proceso correctamente'),
+    ('Rechazado', 'El pago fue rechazado por la entidad financiera'),
+    ('Pendiente', 'El pago está en proceso de verificacion'),
+    ('Cancelado', 'El pago fue cancelado por el usuario'),
+    ('Error', 'Ocurrio un error durante el procesamiento del pago');
+
+select * from SocaiResultPayment;
+```
+| ResultPaymentId | name | description |
+|-----------------|------|-------------|
+| 0 | Exitoso | El pago se procesó correctamente |
+| 1 | Rechazado | El pago fue rechazado por la entidad financiera |
+| 2 | Pendiente | El pago está en proceso de verificación |
+| 3 | Cancelado | El pago fue cancelado por el usuario |
+| 4 | Error | Ocurrió un error durante el procesamiento del pago |
+
+#### Insercion de Tipos de Transacciones
+En este apartado definimos algunos de los tipos de transaccion mas comunes, esto incluyendo subtipos.
+
+``` sql
+insert into SocaiTransactionTypes (name, description)
+
+values ('Pago', 'Transaccion de pago realizada por un usuario'),
+    ('Reembolso', 'Devolucion de un pago a un usuario'),
+    ('Ajuste', 'Ajuste manual de saldo'),
+    ('Cobro de Membresia', 'Cobro automático por membresia'),
+    ('Redención de Beneficio', 'Uso de un beneficio de la membresia');
+
+select * from SocaiTransactionTypes;
+
+--- Insercion Subtipos de Transacciones ---
+
+insert into SocaiTransactionSubTypes (name, description)
+
+values 
+    ('Tarjeta de Credito', 'Pago mediante tarjeta de credito'),
+    ('Tarjeta de Debito', 'Pago mediante tarjeta de debito'),
+    ('Transferencia', 'Pago mediante transferencia bancaria'),
+    ('Efectivo', 'Pago en efectivo'),
+    ('Monedero Digital', 'Pago mediante billetera digital');
+
+select * from SocaiTransactionSubTypes;
+
+```
+
+#### Transaction Types
+| TransactionTypeId | name | description |
+|------------------|------|-------------|
+| 0 | Pago | Transacción de pago realizada por un usuario |
+| 1 | Reembolso | Devolución de un pago a un usuario |
+| 2 | Ajuste | Ajuste manual de saldo |
+| 3 | Cobro de Membresía | Cobro automático por membresía |
+| 4 | Redención de Beneficio | Uso de un beneficio de la membresía |
+
+#### TransactionSubTypes
+| TransactionSubTypeId | name | description |
+|----------------------|------|-------------|
+| 0 | Tarjeta de Crédito | Pago mediante tarjeta de crédito |
+| 1 | Tarjeta de Débito | Pago mediante tarjeta de débito |
+| 2 | Transferencia | Pago mediante transferencia bancaria |
+| 3 | Efectivo | Pago en efectivo |
+| 4 | Monedero Digital | Pago mediante billetera digital |
+
+### 1.6 Usuarios
+En este caso creamos un procedure para hacer una generacion de 30 usuarios con nombres aleatorios. Esto para posteriormente pasar a lo que seria la generacion de usuarios con suscripciones activas
+
+``` sql
+-- Procedimiento para generar usuarios aleatorios
+
+DROP PROCEDURE IF EXISTS FillSocaiUsers;
+GO
+
+CREATE PROCEDURE FillSocaiUsers
+AS
+
+BEGIN
+    DECLARE @i INT = 1;
+    DECLARE @total_users INT = 30;
+    DECLARE @nombre VARCHAR(50);
+    DECLARE @apellido VARCHAR(50);
+    DECLARE @email_usuario VARCHAR(100);
+    DECLARE @email_dominio VARCHAR(20);
+    DECLARE @telefono VARCHAR(20);
+    DECLARE @direccion_id INT;
+    DECLARE @password_hash VARBINARY(100);
+    
+    -- Generacioon de 30 usuarios
+    WHILE @i <= @total_users
+
+    BEGIN
+        -- Generar datos aleatorios para el usuario con una lista ampliada
+        SET @nombre = 
+            CASE FLOOR(1 + RAND() * 30)
+                WHEN 1 THEN 'Ana' WHEN 2 THEN 'Carlos' WHEN 3 THEN 'Maria' 
+                WHEN 4 THEN 'Jose' WHEN 5 THEN 'Priscilla' WHEN 6 THEN 'Pedro'
+                WHEN 7 THEN 'Sofia' WHEN 8 THEN 'Daniel' WHEN 9 THEN 'Gabriela'
+                WHEN 10 THEN 'Luis' WHEN 11 THEN 'Natalia' WHEN 12 THEN 'Roberto'
+                WHEN 13 THEN 'Monica' WHEN 14 THEN 'Alberto' WHEN 15 THEN 'Karla'
+                WHEN 16 THEN 'Francisco' WHEN 17 THEN 'Adriana' WHEN 18 THEN 'Ricardo'
+                WHEN 19 THEN 'Valeria' WHEN 20 THEN 'Ferran' WHEN 21 THEN 'Patricia'
+                WHEN 22 THEN 'Christopher' WHEN 23 THEN 'Alejandra' WHEN 24 THEN 'David'
+                WHEN 25 THEN 'Carolina' WHEN 26 THEN 'Fernando' WHEN 27 THEN 'Isabel'
+                WHEN 28 THEN 'Adrian' WHEN 29 THEN 'Lamine' ELSE 'Alejandro'
+            END;
+            
+        SET @apellido = 
+            CASE FLOOR(1 + RAND() * 30)
+                WHEN 1 THEN 'Rodriguez' WHEN 2 THEN 'Gonzalez' WHEN 3 THEN 'Hernandez'
+                WHEN 4 THEN 'Lopez' WHEN 5 THEN 'Flick' WHEN 6 THEN 'Sanchez'
+                WHEN 7 THEN 'Perez' WHEN 8 THEN 'Ramirez' WHEN 9 THEN 'Torres'
+                WHEN 10 THEN 'Flores' WHEN 11 THEN 'Topuria' WHEN 12 THEN 'Gomez'
+                WHEN 13 THEN 'Vargas' WHEN 14 THEN 'Cruz' WHEN 15 THEN 'Jimenez'
+                WHEN 16 THEN 'Morales' WHEN 17 THEN 'Reyes' WHEN 18 THEN 'Ortiz'
+                WHEN 19 THEN 'Gutierrez' WHEN 20 THEN 'Castro' WHEN 21 THEN 'Vargas'
+                WHEN 22 THEN 'Poirier' WHEN 23 THEN 'Alvarez' WHEN 24 THEN 'Mendoza'
+                WHEN 25 THEN 'Fernandez' WHEN 26 THEN 'Ruiz' WHEN 27 THEN 'Navarro'
+                WHEN 28 THEN 'Molina' WHEN 29 THEN 'Delgado' ELSE 'Aguilar'
+            END;
+            
+        SET @email_dominio = 
+            CASE FLOOR(1 + RAND() * 8)
+                WHEN 1 THEN '@gmail.com' WHEN 2 THEN '@hotmail.com' WHEN 3 THEN '@yahoo.com'
+                WHEN 4 THEN '@outlook.com' WHEN 5 THEN '@icloud.com' WHEN 6 THEN '@me.com'
+                WHEN 7 THEN '@casamail.com' ELSE '@eslive.com'
+            END;
+        
+        SET @email_usuario = LOWER(@nombre) + '.' + LOWER(@apellido) + 
+                            CAST(FLOOR(100 + RAND() * 900) AS VARCHAR) + @email_dominio;
+                            
+        SET @telefono = '8' + RIGHT('000' + CAST(FLOOR(100 + RAND() * 900) AS VARCHAR), 3) + '-' + 
+                       RIGHT('0000' + CAST(FLOOR(1000 + RAND() * 9000) AS VARCHAR), 4);
+                       
+        SET @direccion_id = @i; -- Usamos la direccion generadas de 1 - 30
+        
+        SET @password_hash = CAST('hash_' + CONVERT(VARCHAR(32), HASHBYTES('MD5', 
+                              @nombre + @apellido + CAST(FLOOR(RAND() * 1000) AS VARCHAR)), 2) AS VARBINARY(100));
+        
+        -- Insertar usuario
+        INSERT INTO SocaiUsers (Name, Email, PhoneNumber, Password, AddressId, isActive, LastLogin, CreatedAt)
+        VALUES ( @nombre + ' ' + @apellido,  @email_usuario, @telefono, @password_hash,
+            @direccion_id, 1, DATEADD(DAY, -FLOOR(RAND() * 30), GETDATE()), 
+            DATEADD(DAY, -(30 + FLOOR(RAND() * 180)), GETDATE()));
+        
+        SET @i = @i + 1;
+    END
+    
+END;
+GO
+
+EXEC FillSocaiUsers;
+GO
+
+select * from SocaiUsers;
+
+```
+| UserId | Name | Email | PhoneNumber | Password | AddressId | isActive | LastLogin | CreatedAt |
+|--------|------|-------|-------------|----------|-----------|----------|-----------|-----------|
+| 1 | Pedro Aguilar | pedro.aguilar345@icloud.com | 8337-8760 | 0x686173685F443742454634113642374138332413242438... | 1 | 1 | 2025-04-28 22:25:28.320 | 2024-10-23 22:25:28.320 |
+| 2 | Daniel Jimenez | daniel.jimenez615@alive.com | 8943-2788 | 0x686173685F33304346411464341383941712423203135... | 2 | 1 | 2025-04-27 22:25:28.323 | 2024-12-09 22:25:28.323 |
+| 3 | Alejandro Vargas | alejandro.vargas298@outlook.com | 8628-6407 | 0x686173685F32424530363445354538314634313542441... | 3 | 1 | 2025-04-21 22:25:28.323 | 2024-12-22 22:25:28.323 |
+| 4 | Alejandro Aguilar | alejandro.aguilar854@yahoo.com | 8967-9914 | 0x686173685F34314536384333373143430437394643438... | 4 | 1 | 2025-04-09 22:25:28.323 | 2024-12-10 22:25:28.323 |
+| 5 | Alejandra Avila | alejandra.avila646@gmail.com | 8554-2796 | 0x686173685F34328643443938343934337443443444536... | 5 | 1 | 2025-04-26 22:25:28.327 | 2025-03-15 22:25:28.327 |
+| 6 | Carolina Gomez | carolina.gomez960@icloud.com | 8907-8756 | 0x686173685F359313543944435463130414304131304... | 6 | 1 | 2025-04-08 22:25:28.327 | 2025-01-02 22:25:28.327 |
+| 7 | Ferran Fernandez | ferran.fernandez404@gmail.com | 8657-9863 | 0x686173685F42463731364433424393737453438444533... | 7 | 1 | 2025-04-14 22:25:28.327 | 2025-04-02 22:25:28.327 |
+| 8 | Sofia Aguilar | sofia.aguilar755@alive.com | 8692-2798 | 0x686173685F45323484364533683763533452334144... | 8 | 1 | 2025-04-22 22:25:28.327 | 2025-02-06 22:25:28.327 |
+| 9 | Alejandro Lopez | alejandro.lopez936@eslive.com | 8132-6520 | 0x686173685F46313139353742934303930394331323943... | 9 | 1 | 2025-04-05 22:25:28.327 | 2025-02-16 22:25:28.327 |
+| 10 | Karla Aguilar | karla.aguilar459@eslive.com | 8592-8532 | 0x686173685F42437383423136393643113744343538... | 10 | 1 | 2025-04-09 22:25:28.327 | 2024-10-27 22:25:28.327 |
+| 11 | Adrian Aguilar | adrian.aguilar240@alive.com | 8354-7158 | 0x686173685F383131433143341354444332414539... | 11 | 1 | 2025-04-22 22:25:28.327 | 2024-10-18 22:25:28.327 |
+| 12 | Alejandro Aguilar | alejandro.aguilar392@outlook.com | 8319-7875 | 0x686173685F34393945303834633444134413123293044... | 12 | 1 | 2025-04-26 22:25:28.327 | 2025-03-14 22:25:28.327 |
+| 13 | Ana Vargas | ana.vargas168@yahoo.com | 8607-2885 | 0x686173685F44342434542363841343444433539330... | 13 | 1 | 2025-04-17 22:25:28.327 | 2025-03-28 22:25:28.327 |
+| 14 | Isabel Aguilar | isabel.aguilar931@alive.com | 8471-7828 | 0x686173685F3335446313134341343443344534146... | 14 | 1 | 2025-04-06 22:25:28.327 | 2025-04-01 22:25:28.327 |
+| 15 | Carlos Sanchez | carlos.sanchez725@icloud.com | 8102-4628 | 0x686173685F383939303534393633533243573846384230... | 15 | 1 | 2025-04-09 22:25:28.327 | 2025-02-09 22:25:28.327 |
+| 16 | Alejandro Rick | alejandro.rick452@gmail.com | 8571-8040 | 0x686173685F44436434435039383241313843434534746... | 16 | 1 | 2025-04-28 22:25:28.327 | 2025-01-17 22:25:28.327 |
+| 17 | David Gomez | david.gomez100@outlook.com | 8150-9313 | 0x686173685F3234543743381383413841373834230... | 17 | 1 | 2025-04-24 22:25:28.330 | 2024-10-18 22:25:28.330 |
+| 18 | Jorge Ramirez | jorge.ramirez481@icloud.com | 8257-7883 | 0x686173685F4450423132437543131443132930358... | 18 | 1 | 2025-04-22 22:25:28.330 | 2025-03-25 22:25:28.330 |
+| 19 | Alejandro Fernandez | alejandro.fernandez778@eslive... | 8951-7076 | 0x686173685F3437363324537383630464573630303936... | 19 | 1 | 2025-04-23 22:25:28.330 | 2025-02-05 22:25:28.330 |
+| 20 | Ricardo Ortiz | ricardo.ortiz387@outlook.com | 8286-5225 | 0x686173685F3833354393834246414653942345245... | 20 | 1 | 2025-04-17 22:25:28.330 | 2024-11-28 22:25:28.330 |
+| 21 | Daniel Aguilar | daniel.aguilar152@yahoo.com | 8774-1447 | 0x686173685F343334135423931342303134231344... | 21 | 1 | 2025-04-08 22:25:28.330 | 2025-02-23 22:25:28.330 |
+| 22 | Alejandro Cruz | alejandro.cruz510@icloud.com | 8332-6540 | 0x686173685F383938433754443446344441359330343236... | 22 | 1 | 2025-04-23 22:25:28.330 | 2024-12-21 22:25:28.330 |
+| 23 | Monica Rodriguez | monica.rodriguez126@outlook.c... | 8781-1978 | 0x686173685F30363945383433324125263043393134231... | 23 | 1 | 2025-04-18 22:25:28.330 | 2025-01-09 22:25:28.330 |
+| 24 | Jorge Hurtado | jorge.hurtado872@icloud.com | 8461-0969 | 0x686173685F31304543433714836353263134641... | 24 | 1 | 2025-04-12 22:25:28.330 | 2025-02-21 22:25:28.330 |
+| 25 | Alejandro Aguilar | alejandro.aguilar43@eslive.com | 8664-7545 | 0x686173685F3044424241384454632328423242383534... | 25 | 1 | 2025-04-22 22:25:28.330 | 2024-12-08 22:25:28.330 |
+| 26 | Maria Fernandez | maria.fernandez289@eslive.com | 8570-6453 | 0x686173685F37453945393535734374231353337430... | 26 | 1 | 2025-04-24 22:25:28.330 | 2024-10-30 22:25:28.330 |
+| 27 | Ferran Ramirez | ferran.ramirez878@gmail.com | 8913-7737 | 0x686173685F371363034354662323043313637945... | 27 | 1 | 2025-04-19 22:25:28.330 | 2025-01-18 22:25:28.330 |
+| 28 | Ana Aguilar | ana.aguilar342@icloud.com | 8809-6016 | 0x686173685F46353843363731243363742463630304335... | 28 | 1 | 2025-05-04 22:25:28.330 | 2025-02-10 22:25:28.330 |
+| 29 | Lamine Vargas | lamine.vargas607@eslive.com | 8897-2978 | 0x686173685F41373642434435433744454143731331... | 29 | 1 | 2025-04-13 22:25:28.330 | 2024-12-19 22:25:28.330 |
+| 30 | Luis Aguilar | luis.aguilar316@eslive.com | 8202-5174 | 0x686173685F32136363831454633333393423034137471... | 30 | 1 | 2025-04-13 22:25:28.330 | 2025-04-04 22:25:28.330 |
+
 
 ## 2. Demostraciones T-SQL (uso de instrucciones específicas) (Chris)
 
