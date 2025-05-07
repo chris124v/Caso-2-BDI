@@ -2,7 +2,7 @@
 
 ## Integrantes
 * Santiago Calderón Zúñiga, 2024089232
-* Adrián Josué Barquero Sánchez
+* Adrián Josué Barquero Sánchez, 2024146907
 * Christopher Daniel Vargas Villalta, 2024108443
 
 ## 1. Introduccion
