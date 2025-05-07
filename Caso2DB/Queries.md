@@ -1135,6 +1135,211 @@ select * from SocaiUsers;
 | 29 | Lamine Vargas | lamine.vargas607@eslive.com | 8897-2978 | 0x686173685F41373642434435433744454143731331... | 29 | 1 | 2025-04-13 22:25:28.330 | 2024-12-19 22:25:28.330 |
 | 30 | Luis Aguilar | luis.aguilar316@eslive.com | 8202-5174 | 0x686173685F32136363831454633333393423034137471... | 30 | 1 | 2025-04-13 22:25:28.330 | 2025-04-04 22:25:28.330 |
 
+#### Usuarios con Suscripciones
+Aqui definimos diversas suscripciones para cada uno de los usuarios, esto manteniendo la regla de que hayan 25 usuarios con suscripcion activa y 5 con una suscripcion no activa, ademas de esto aseguramos que para cada plan haya aproximadamente entre 3 a 4 personas.
+
+``` sql
+DROP PROCEDURE IF EXISTS FillSocaiSubscriptions;
+GO
+
+CREATE PROCEDURE FillSocaiSubscriptions
+AS
+
+BEGIN
+    -- Ok aqui definimos las variables para control
+    DECLARE @total_active_subscriptions INT = 25;
+    DECLARE @total_inactive_subscriptions INT = 5;
+    DECLARE @current_plan INT = 2; -- Los planes comienzan en ID 2 debido a que cuando los generamos empezaron en 2
+    DECLARE @max_plan INT = 9; -- Ultimo id son 8 planees en total
+    DECLARE @subscriptions_per_plan INT;
+    DECLARE @subscriptions_left INT;
+    DECLARE @users_assigned TABLE (UserId INT);
+    DECLARE @available_users TABLE (UserId INT);
+    DECLARE @user_to_assign INT;
+    DECLARE @active_user_count INT = 0;
+    DECLARE @inactive_user_count INT = 0;
+    DECLARE @rand_start_date DATETIME;
+    DECLARE @rand_end_date DATETIME;
+    
+    -- Obtener todos los usuarios disponibles actualmente que son 30
+    INSERT INTO @available_users (UserId)
+    SELECT UserId FROM SocaiUsers ORDER BY UserId;
+    
+    -- Distribuimos suscripciones activas entre los planes
+    -- iniciar con todos los planes teniendo 3 suscripciones
+    WHILE @current_plan <= @max_plan
+
+    BEGIN
+        -- Asignar entre 3 y 6 suscripciones por plan esto para que no se acaben de un solo
+        -- Pero no mas de las que quedan disponibles
+        SET @subscriptions_left = @total_active_subscriptions - @active_user_count;
+        
+        -- Si este el ultimo plan, asignar todas las suscripciones restantes
+        IF @current_plan = @max_plan AND @subscriptions_left > 0
+
+        BEGIN
+            SET @subscriptions_per_plan = @subscriptions_left;
+        END
+
+        ELSE
+
+        BEGIN
+            -- Calcular cuantas suscripciones quedan por plan
+            DECLARE @remaining_plans INT = @max_plan - @current_plan + 1;
+            DECLARE @min_per_remaining_plan INT = @subscriptions_left / @remaining_plans;
+            
+            -- Asignar entre 3 y 6, pero no menos de lo minimo necesario
+            SET @subscriptions_per_plan = 
+                CASE 
+                    WHEN @min_per_remaining_plan <= 3 THEN 3
+                    WHEN @min_per_remaining_plan >= 6 THEN 6
+                    ELSE @min_per_remaining_plan
+                END;
+                
+            -- Pero nunca mas de lo que queda disponible como tal
+            IF @subscriptions_per_plan > @subscriptions_left
+                SET @subscriptions_per_plan = @subscriptions_left;
+        END
+        
+        -- Asignar suscripciones para este plan
+        DECLARE @i INT = 0;
+        WHILE @i < @subscriptions_per_plan
+        BEGIN
+
+            -- Seleccionar un usuario aleatorio no asignado aun
+            SELECT TOP 1 @user_to_assign = UserId 
+            FROM @available_users 
+            ORDER BY NEWID();
+            
+            -- Generar fechas aleatorias para la suscripción activa
+            -- Generar fechas aleatorias para la suscripción activa
+            SET @rand_start_date = DATEADD(DAY, -FLOOR(RAND() * 25), GETDATE()); -- Inicio en los ultimos 30 dias
+            SET @rand_end_date = DATEADD(DAY, 30, @rand_start_date); -- 30 días de suscripcion
+            
+            -- Insertar la suscripción activa
+            INSERT INTO SocaiSubscriptionUser (enable, startDateTime, endDateTime, UserId, SubscriptionId)
+            VALUES (1, @rand_start_date, @rand_end_date, @user_to_assign, @current_plan);
+            
+            -- Registrar el usuario como asignado
+            INSERT INTO @users_assigned (UserId) VALUES (@user_to_assign);
+            
+            -- Eliminar el usuario de los disponibles
+            DELETE FROM @available_users WHERE UserId = @user_to_assign;
+            
+            SET @i = @i + 1;
+            SET @active_user_count = @active_user_count + 1;
+        END
+        
+        SET @current_plan = @current_plan + 1;
+    END
+    
+    -- Asignamos 5 suscripciones inactivas a usuarios no asignados aun
+    WHILE @inactive_user_count < @total_inactive_subscriptions
+    BEGIN
+
+        -- Seleccionamos un usuario aleatorio no asignado aun
+        SELECT TOP 1 @user_to_assign = UserId 
+        FROM @available_users 
+        ORDER BY NEWID();
+        
+        -- Generar fechas aleatorias para la suscripcion inactiva que existe
+        SET @rand_start_date = DATEADD(DAY, -FLOOR(60 + RAND() * 30), GETDATE()); -- Inicio hace 60-90 dias
+        SET @rand_end_date = DATEADD(DAY, 30, @rand_start_date); --  30 dias de suscripción, ya venció
+        
+        -- Seleccionar un plan aleatorio
+        DECLARE @random_plan INT = FLOOR(2 + RAND() * 7); -- Entre 2 y 8 que son los plenes
+        
+        -- Insertar la suscripcion inactiva
+        INSERT INTO SocaiSubscriptionUser (enable, startDateTime, endDateTime, UserId, SubscriptionId)
+        VALUES (0, @rand_start_date, @rand_end_date, @user_to_assign, @random_plan);
+        
+        -- Eliminar el usuario de los disponibles
+        DELETE FROM @available_users WHERE UserId = @user_to_assign;
+        
+        SET @inactive_user_count = @inactive_user_count + 1;
+    END
+    
+END;
+GO
+
+-- Ejecutar el procedimiento
+EXEC FillSocaiSubscriptions;
+GO
+
+```
+Ahora en este apartado vamos a hacer una verificacion de los datos propuestos con el procedure.
+
+``` sql
+-- Verificamos los resultados 
+SELECT su.SubscriptionUserId, su.UserId, u.Name AS UserName, 
+       su.SubscriptionId, s.Name AS PlanName, 
+       su.enable AS Estado, 
+       CONVERT(VARCHAR, su.startDateTime, 103) AS FechaInicio, 
+       CONVERT(VARCHAR, su.endDateTime, 103) AS FechaFin,
+       DATEDIFF(DAY, su.startDateTime, su.endDateTime) AS DuracionDias
+FROM SocaiSubscriptionUser su
+JOIN SocaiUsers u ON su.UserId = u.UserId
+JOIN SocaiSubscriptions s ON su.SubscriptionId = s.SubscriptionId
+ORDER BY s.SubscriptionId, su.enable DESC;
+```
+| SubscriptionUserId | UserId | UserName | SubscriptionId | PlanName | Estado | FechaInicio | FechaFin | DuracionDias |
+|-------------------|--------|----------|----------------|----------|--------|-------------|----------|--------------|
+| 1 | 8 | Sofia Aguilar | 2 | Profesional Joven | 1 | 19/04/2025 | 19/05/2025 | 30 |
+| 2 | 4 | Alejandro Aguilar | 2 | Profesional Joven | 1 | 21/04/2025 | 21/05/2025 | 30 |
+| 3 | 3 | Alejandro Vargas | 2 | Profesional Joven | 1 | 02/05/2025 | 01/06/2025 | 30 |
+| 26 | 5 | Alejandro Avila | 2 | Profesional Joven | 0 | 07/02/2025 | 09/03/2025 | 30 |
+| 4 | 17 | David Gomez | 3 | Familia Moderna | 1 | 14/04/2025 | 14/05/2025 | 30 |
+| 5 | 12 | Alejandro Aguilar | 3 | Familia Moderna | 1 | 13/04/2025 | 13/05/2025 | 30 |
+| 6 | 10 | Karla Aguilar | 3 | Familia Moderna | 1 | 12/04/2025 | 12/05/2025 | 30 |
+| 28 | 9 | Alejandro Lopez | 3 | Familia Moderna | 0 | 17/02/2025 | 19/03/2025 | 30 |
+| 7 | 26 | Maria Fernandez | 4 | Ejecutivo Premium | 1 | 21/04/2025 | 21/05/2025 | 30 |
+| 8 | 25 | Alejandro Aguilar | 4 | Ejecutivo Premium | 1 | 15/04/2025 | 15/05/2025 | 30 |
+| 9 | 18 | Natalia Aguilar | 4 | Ejecutivo Premium | 1 | 30/04/2025 | 30/05/2025 | 30 |
+| 10 | 16 | Alejandro Rick | 5 | Entusiasta al Gym | 1 | 22/04/2025 | 22/05/2025 | 30 |
+| 11 | 14 | Isabel Aguilar | 5 | Entusiasta al Gym | 1 | 16/04/2025 | 16/05/2025 | 30 |
+| 12 | 15 | Carlos Sanchez | 5 | Entusiasta al Gym | 1 | 22/04/2025 | 22/05/2025 | 30 |
+| 27 | 20 | Ricardo Ortiz | 5 | Entusiasta al Gym | 0 | 20/02/2025 | 22/03/2025 | 30 |
+| 13 | 29 | Lamine Vargas | 6 | Movilidad Urbana | 1 | 20/04/2025 | 20/05/2025 | 30 |
+| 14 | 24 | Alejandro Aguilar | 6 | Movilidad Urbana | 1 | 10/04/2025 | 10/05/2025 | 30 |
+| 15 | 11 | Adrian Aguilar | 6 | Movilidad Urbana | 1 | 25/04/2025 | 25/05/2025 | 30 |
+| 30 | 2 | Daniel Aguilar | 6 | Movilidad Urbana | 0 | 16/02/2025 | 18/03/2025 | 30 |
+| 16 | 13 | Ana Vargas | 7 | Amante de Mascotas | 1 | 01/05/2025 | 31/05/2025 | 30 |
+| 17 | 21 | Ricardo Aguilar | 7 | Amante de Mascotas | 1 | 02/05/2025 | 01/06/2025 | 30 |
+| 18 | 22 | Alejandro Cruz | 7 | Amante de Mascotas | 1 | 28/04/2025 | 28/05/2025 | 30 |
+| 29 | 27 | Daniel Ramirez | 7 | Amante de Mascotas | 0 | 09/02/2025 | 11/03/2025 | 30 |
+| 19 | 30 | Luis Aguilar | 8 | Hogar y Cuidado | 1 | 18/04/2025 | 18/05/2025 | 30 |
+| 20 | 1 | Pedro Aguilar | 8 | Hogar y Cuidado | 1 | 30/04/2025 | 30/05/2025 | 30 |
+| 21 | 23 | Monica Rodriguez | 8 | Hogar y Cuidado | 1 | 04/05/2025 | 03/06/2025 | 30 |
+| 22 | 7 | Ferran Fernandez | 9 | Amante de la Gastronomía | 1 | 18/04/2025 | 18/05/2025 | 30 |
+| 23 | 6 | Carolina Gomez | 9 | Amante de la Gastronomía | 1 | 03/05/2025 | 02/06/2025 | 30 |
+| 24 | 28 | Ana Aguilar | 9 | Amante de la Gastronomía | 1 | 04/05/2025 | 03/06/2025 | 30 |
+| 25 | 19 | Alejandro Fernandez | 9 | Amante de la Gastronomía | 1 | 22/04/2025 | 22/05/2025 | 30 |
+
+En dicha tabla podemos observar el plan que le corresponde a cada usuario, esto ademas de que hay 25 suscripciones activas y 5 desactivadas. Ahora bien vamos con la tabla de la distribucion de suscripciones por plan.
+
+``` sql
+-- Aqui seria la distribucion de suscripciones por plan
+SELECT s.SubscriptionId, s.Name AS PlanName, 
+       COUNT(su.SubscriptionUserId) AS TotalSuscripciones,
+       SUM(CAST(su.enable AS INT)) AS SuscripcionesActivas
+FROM SocaiSubscriptions s
+LEFT JOIN SocaiSubscriptionUser su ON s.SubscriptionId = su.SubscriptionId
+GROUP BY s.SubscriptionId, s.Name
+ORDER BY s.SubscriptionId;
+GO
+
+```
+| SubscriptionId | PlanName | TotalSuscripciones | SuscripcionesActivas |
+|---------------|----------|---------------------|----------------------|
+| 2 | Profesional Joven | 4 | 3 |
+| 3 | Familia Moderna | 4 | 3 |
+| 4 | Ejecutivo Premium | 3 | 3 |
+| 5 | Entusiasta al Gym | 4 | 3 |
+| 6 | Movilidad Urbana | 4 | 3 |
+| 7 | Amante de Mascotas | 4 | 3 |
+| 8 | Hogar y Cuidado | 3 | 3 |
+| 9 | Amante de la Gastronomía | 4 | 4 |
+
 
 ## 2. Demostraciones T-SQL (uso de instrucciones específicas) (Chris)
 
