@@ -1,7 +1,7 @@
 # Caso 2 Base de Datos Soltura: Documentacion
 
 ## Integrantes
-* Santiago Calderón Zúñiga 
+* Santiago Calderón Zúñiga, 2024089232
 * Adrián Josué Barquero Sánchez
 * Christopher Daniel Vargas Villalta, 2024108443
 
