@@ -1342,6 +1342,1000 @@ GO
 
 
 ## 2. Demostraciones T-SQL (uso de instrucciones específicas) (Chris)
+En esta parte de los queries vamos a asegurarnos de usar las instrucciones especificas de: cursor global&local, trigger, sp_recompile, MERGE, COALESCE, SUBSTRING, LTRIM, AVG, TOP, &&, SCHEMABINDING, with encryption, execute as, union y distinct.
+
+Primeramente veamos a Cursor Local y Global.
+
+#### Cursor Local
+
+Este cursor recorre las suscripciones que vencerán en los próximos 7 días y genera mensajes personalizados. Al ser un cursor LOCAL, solo estará disponible en la sesión donde se creó y no podrá ser accedido desde otras conexiones, lo cual es importante para la gestión de recursos y la seguridad.
+
+``` sql
+-- Cursor local -----
+
+---Suscripcion Proxima a vencer con un mensaje o notificacion ---
+
+DECLARE @nombreUsuario VARCHAR(250)
+DECLARE @email VARCHAR(220)
+DECLARE @nombrePlan VARCHAR(100)
+DECLARE @fechaVencimiento DATETIME
+DECLARE @mensaje VARCHAR(500)
+
+-- Declaramos el cursor local
+DECLARE cursor_local_demo CURSOR LOCAL FOR 
+
+SELECT 
+    u.Name AS NombreUsuario, 
+    u.Email,
+    s.Name AS NombrePlan, 
+    su.endDateTime AS FechaVencimiento
+
+FROM SocaiSubscriptionUser su
+JOIN SocaiUsers u ON su.UserId = u.UserId
+JOIN SocaiSubscriptions s ON su.SubscriptionId = s.SubscriptionId
+
+WHERE 
+    su.enable = 1 AND 
+    su.endDateTime BETWEEN GETDATE() AND DATEADD(DAY, 7, GETDATE());
+
+-- Abrimos el cursor
+OPEN cursor_local_demo
+
+-- Obtenemos la primera fila
+FETCH NEXT FROM cursor_local_demo INTO @nombreUsuario, @email, @nombrePlan, @fechaVencimiento
+
+-- ahora revisamos propiamente si hay datos
+IF @@FETCH_STATUS = 0
+
+BEGIN
+    PRINT '===== NOTIFICACIONES DE SUSCRIPCIONES PRÓXIMAS A VENCER ====='
+END
+
+ELSE
+
+BEGIN
+    PRINT 'No hay suscripciones próximas a vencer en los próximos 7 días.'
+END
+
+-- Procesamos cada fila
+WHILE @@FETCH_STATUS = 0
+BEGIN
+    -- Crear mensaje personalizado de recordatorio
+    SET @mensaje = 'NOTIFICACIÓN: Estimado/a ' + @nombreUsuario + 
+                  ', su suscripción al plan "' + @nombrePlan + 
+                  '" vence el ' + CONVERT(VARCHAR, @fechaVencimiento, 103) + 
+                  '. Por favor renueve para seguir disfrutando de sus beneficios.';
+    
+    -- Esta seria una notificacion para verificar que el cursor funciono
+    PRINT @mensaje
+    
+    -- Obtenemos la siguiente fila
+    FETCH NEXT FROM cursor_local_demo INTO @nombreUsuario, @email, @nombrePlan, @fechaVencimiento
+END
+
+-- Cerramos y liberamos el cursor local 
+CLOSE cursor_local_demo
+DEALLOCATE cursor_local_demo
+
+```
+Este seria el mensaje que nos da el cursor local:
+===== NOTIFICACIONES DE SUSCRIPCIONES PRÓXIMAS A VENCER =====
+NOTIFICACIÓN: Estimado/a Alejandro Aguilar, su suscripción al plan "Familia Moderna" vence el 13/05/2025. Por favor renueve para seguir disfrutando de sus beneficios.
+NOTIFICACIÓN: Estimado/a Karla Aguilar, su suscripción al plan "Familia Moderna" vence el 12/05/2025. Por favor renueve para seguir disfrutando de sus beneficios.
+NOTIFICACIÓN: Estimado/a Alejandro Aguilar, su suscripción al plan "Movilidad Urbana" vence el 10/05/2025. Por favor renueve para seguir disfrutando de sus beneficios.
+
+Hora de finalización: 2025-05-06T23:08:17.3280025-06:00
+
+#### Cursor Global
+Este cursor global simplemente lista los principales comercios por servicios ofrecidos.
+
+``` sql
+DECLARE @nombreComercio VARCHAR(225)
+DECLARE @serviciosOfrecidos INT
+DECLARE @contactoPrincipal VARCHAR(60)
+
+-- Declarar cursor explicitamente como global para ser accesado en otras sesiones
+DECLARE cursor_global_demo CURSOR GLOBAL FOR
+
+SELECT 
+    c.Name AS NombreComercio,
+    COUNT(cf.CommercesFeaturesId) AS ServiciosOfrecidos,
+    cp.Name AS ContactoPrincipal
+FROM SocaiCommerces c
+JOIN SocaiCommercesFeatures cf ON c.CommerceId = cf.CommercesId
+LEFT JOIN SocaiCommerceContactPerson cp ON c.CommerceId = cp.CommerceId
+WHERE c.IsActive = 1
+GROUP BY c.Name, cp.Name
+ORDER BY COUNT(cf.CommercesFeaturesId) DESC;
+
+-- Abrir el cursor
+OPEN cursor_global_demo
+
+-- Obtenemos la primera fila con fetch
+FETCH NEXT FROM cursor_global_demo INTO @nombreComercio, @serviciosOfrecidos, @contactoPrincipal
+
+-- Comprobamos si hay datos
+IF @@FETCH_STATUS = 0
+
+BEGIN
+    PRINT '===== Comercicos con mas servicios ofrecidos ====='
+END
+
+ELSE
+
+BEGIN
+    PRINT 'No se encontraron comercios con servicios activos.'
+END
+
+-- Procesamos cada fila
+WHILE @@FETCH_STATUS = 0
+BEGIN
+    PRINT 'Comercio: ' + @nombreComercio + 
+          ' | Servicios: ' + CAST(@serviciosOfrecidos AS VARCHAR) + 
+          ' | Contacto: ' + ISNULL(@contactoPrincipal, 'No asignado');
+    
+    -- Obtenemos la siguiente fila
+    FETCH NEXT FROM cursor_global_demo INTO @nombreComercio, @serviciosOfrecidos, @contactoPrincipal
+END
+
+-- Cerrar el cursor pero no usamos deallocate esto para demostrar que sigue siendo accesible
+CLOSE cursor_global_demo
+
+```
+Este seria el mensaje que nos da el cursor global:
+
+===== Comercicos con mas servicios ofrecidos =====
+Comercio: The Spa | Servicios: 4 | Contacto: Ana Vargas
+Comercio: Crunch Fitness | Servicios: 3 | Contacto: Carlos Rodriguez
+Comercio: Salud Integral Beneficiada | Servicios: 3 | Contacto: Carmen Blanco
+Comercio: HogarCleaner | Servicios: 3 | Contacto: Lucia Campos
+Comercio: PetCare | Servicios: 3 | Contacto: Roberto Mendez
+Comercio: Gasolinera YAM | Servicios: 2 | Contacto: Miguel Soto
+Comercio: UberEats | Servicios: 2 | Contacto: Daniel Herrera
+Comercio: Fit Center Oxigeno | Servicios: 2 | Contacto: Gabriela Mora
+Comercio: Barberia Paco | Servicios: 2 | Contacto: Jose Castro
+Comercio: YogaLife | Servicios: 1 | Contacto: Patricia Jimenez
+
+Hora de finalización: 2025-05-06T23:10:10.1842568-06:00
+
+#### Trigger, Substring, Ltrim, Coalesce, Top y Distinct 
+En esta consulta de instruccion especifica usando las tablas de  SocaiLogs y SocaiTransactions creamos el trigger para registrar transacciones de pago en la tabla de logs existente. 
+
+Aqui una pequena descripcion de que hace cadainstruccion:
+
+1. TRIGGER: Implementado para SocaiPayments
+2. SUBSTRING: Utilizado para truncar descripciones
+3. LTRIM: Utilizado para limpiar espacios iniciales
+4. COALESCE: Utilizado para manejar valores nulos
+5. TOP: Utilizado para limitar resultados
+6. DISTINCT: Utilizado para obtener valores únicos
+
+``` sql
+DROP TRIGGER IF EXISTS trg_SocaiPayments_Insert;
+GO
+
+CREATE TRIGGER trg_SocaiPayments_Insert
+ON SocaiPayments
+AFTER INSERT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    -- Variables para el mensaje de log
+    DECLARE @paymentMethod VARCHAR(30)
+    DECLARE @logMessage VARCHAR(500)
+    DECLARE @transactionId INT
+    
+    -- TOP: Obtener solo los 5 métodos de pago más utilizados
+    DECLARE @topPaymentMethods VARCHAR(200) = '';
+    
+    -- Versión simplificada que evita el problema de ORDER BY en subconsulta
+    SELECT TOP 5 @topPaymentMethods = @topPaymentMethods + pm.name + ', '
+    FROM SocaiPaymentMethods pm
+    JOIN SocaiPayments p ON pm.PaymentMethodId = p.PaymentMethodId
+    GROUP BY pm.name, pm.PaymentMethodId
+    ORDER BY COUNT(*) DESC;
+    
+    -- Quitar la última coma
+    IF LEN(@topPaymentMethods) > 0
+        SET @topPaymentMethods = LEFT(@topPaymentMethods, LEN(@topPaymentMethods) - 1);
+    
+    -- Para cada pago, crear transacción y log asociado
+    INSERT INTO SocaiTransactions (
+        amount,
+        description,
+        transactionDateTime,
+        postTime,
+        referenceNumber,
+        checksum,
+        TransactionTypeId,
+        TransactionSubTypeId,
+        CurrencyTypeId,
+        PaymentId,
+        UserId,
+        ExchangeRateId
+    )
+    SELECT 
+        COALESCE(i.actualAmount, i.amount, 0),  -- COALESCE: Manejo de valores nulos
+        'Transacción generada a partir de pago ID: ' + CAST(i.PaymentId AS VARCHAR),
+        GETDATE(),
+        GETDATE(),
+        LTRIM(i.reference),  -- LTRIM: Eliminar espacios al inicio
+        i.checksum,
+        0,  -- TransactionTypeId = 0 (Pago)
+        0,  -- TransactionSubTypeId = 0 (Tarjeta de Crédito)
+        i.CurrencyTypeId,
+        i.PaymentId,
+        i.UserId,
+        1  -- CurrencyExchangeId = 1
+    FROM inserted i;
+    
+    -- Obtener el ID de la transacción recién creada
+    SET @transactionId = SCOPE_IDENTITY();
+    
+    -- Insertar en la tabla de logs
+    INSERT INTO SocaiLogs (
+        description,
+        postTime,
+        computer,
+        username,
+        trace,
+        referenceID1,
+        referenceID2,
+        value1,
+        value2,
+        checksum,
+        lastUpdate,
+        LogTypeId,
+        LogSourceId,
+        LogSeverityId,
+        UserId,
+        TransactionId
+    )
+    SELECT 
+        -- SUBSTRING: Limitar longitud del mensaje a 200 caracteres
+        SUBSTRING(
+            'Pago registrado: Usuario ID ' + CAST(i.UserId AS VARCHAR) + 
+            ' realizó pago de ' + CAST(COALESCE(i.actualAmount, i.amount, 0) AS VARCHAR) + 
+            ' usando ' + (SELECT pm.name FROM SocaiPaymentMethods pm WHERE pm.PaymentMethodId = i.PaymentMethodId),
+            1, 200),
+        GETDATE(),
+        HOST_NAME(),
+        SYSTEM_USER,
+        'Trigger: trg_SocaiPayments_Insert',
+        i.PaymentId,
+        @transactionId,
+        (SELECT pm.name FROM SocaiPaymentMethods pm WHERE pm.PaymentMethodId = i.PaymentMethodId),
+        CAST(COALESCE(i.actualAmount, i.amount, 0) AS VARCHAR),  -- COALESCE: Otra vez
+        i.checksum,
+        GETDATE(),
+        3,  -- LogTypeId = 3 (Transacción)
+        0,  -- LogSourceId = 0 (Sistema)
+        0,  -- LogSeverityId = 0 (Baja)
+        i.UserId,
+        @transactionId
+    FROM inserted i;
+    
+    -- Mensaje de depuración
+    SET @paymentMethod = (SELECT TOP 1 pm.name FROM SocaiPaymentMethods pm 
+                          JOIN inserted i ON pm.PaymentMethodId = i.PaymentMethodId);
+                          
+    SET @logMessage = 'Trigger ejecutado: Se registró un nuevo pago con método ' + 
+                      COALESCE(@paymentMethod, 'Desconocido') + -- COALESCE: Para valor predeterminado
+                      ' y se generó la transacción ID: ' + CAST(@transactionId AS VARCHAR);
+                      
+    PRINT @logMessage;
+END;
+GO
+
+PRINT 'Trigger trg_SocaiPayments_Insert creado exitosamente';
+
+-- 2. Script para llenar datos de prueba
+-- Crear DataPayments para diferentes usuarios
+DECLARE @userCount INT;
+SELECT @userCount = COUNT(*) FROM SocaiUsers;
+
+-- Solo procesamos hasta 5 usuarios para no crear demasiados registros
+DECLARE @usersToProcess INT = CASE WHEN @userCount > 5 THEN 5 ELSE @userCount END;
+DECLARE @currentUser INT = 1;
+DECLARE @methods TABLE (PaymentMethodId INT);
+
+-- Obtenemos los IDs de métodos de pago existentes
+INSERT INTO @methods
+SELECT PaymentMethodId FROM SocaiPaymentMethods WHERE enable = 1;
+
+WHILE @currentUser <= @usersToProcess
+BEGIN
+    -- Para cada usuario, creamos 2-3 métodos de pago diferentes
+    DECLARE @methodCursor CURSOR;
+    DECLARE @methodId INT;
+    
+    SET @methodCursor = CURSOR FOR
+    SELECT PaymentMethodId FROM @methods
+    WHERE PaymentMethodId IN (0, 1, 2, 6, 9) -- Visa, Mastercard, Amex, PayPal, SINPE
+    ORDER BY NEWID();
+    
+    OPEN @methodCursor;
+    FETCH NEXT FROM @methodCursor INTO @methodId;
+    
+    DECLARE @methodCount INT = 0;
+    
+    WHILE @@FETCH_STATUS = 0 AND @methodCount < 3
+    BEGIN
+        IF NOT EXISTS (SELECT 1 FROM SocaiDataPayments 
+                      WHERE UserId = @currentUser AND PaymentMethodId = @methodId)
+        BEGIN
+            INSERT INTO SocaiDataPayments (name, token, expToken, maskAccount, UserId, PaymentMethodId)
+            VALUES (
+                CASE 
+                    WHEN @methodId = 0 THEN 'Visa Personal'
+                    WHEN @methodId = 1 THEN 'Mastercard Principal'
+                    WHEN @methodId = 2 THEN 'American Express Gold'
+                    WHEN @methodId = 6 THEN 'Cuenta PayPal'
+                    WHEN @methodId = 9 THEN 'SINPE Movil'
+                    ELSE 'Método de pago ' + CAST(@methodId AS VARCHAR)
+                END, 
+                CAST('token_' + CAST(@currentUser AS VARCHAR) + '_' + CAST(@methodId AS VARCHAR) AS VARBINARY(255)), 
+                DATEADD(YEAR, 1, GETDATE()), 
+                CAST('****' + RIGHT('1000' + CAST((@currentUser * 10 + @methodId) AS VARCHAR), 4) AS VARBINARY(255)), 
+                @currentUser, 
+                @methodId
+            );
+            
+            PRINT 'DataPayment creado: Usuario ' + CAST(@currentUser AS VARCHAR) + 
+                  ', Método ' + CAST(@methodId AS VARCHAR);
+            
+            SET @methodCount = @methodCount + 1;
+        END
+        
+        FETCH NEXT FROM @methodCursor INTO @methodId;
+    END
+    
+    CLOSE @methodCursor;
+    DEALLOCATE @methodCursor;
+    
+    SET @currentUser = @currentUser + 1;
+END
+
+PRINT 'Datos de pago adicionales creados';
+
+-- 3. Insertar múltiples pagos para probar el trigger
+DECLARE @paymentsToInsert INT = 15;
+DECLARE @paymentCounter INT = 1;
+DECLARE @randomUser INT;
+DECLARE @randomMethod INT;
+DECLARE @dataPaymentId INT;
+DECLARE @resultPaymentId INT;
+DECLARE @randomAmount INT;
+
+-- Primero verificamos que exista al menos un ResultPaymentId
+IF NOT EXISTS (SELECT 1 FROM SocaiResultPayment)
+BEGIN
+    INSERT INTO SocaiResultPayment (name, description)
+    VALUES ('Exitoso', 'Pago procesado exitosamente');
+    PRINT 'Resultado de pago creado';
+END
+
+SELECT TOP 1 @resultPaymentId = ResultPaymentId FROM SocaiResultPayment;
+
+WHILE @paymentCounter <= @paymentsToInsert
+BEGIN
+    -- Seleccionar un usuario aleatorio
+    SELECT TOP 1 @randomUser = UserId 
+    FROM SocaiUsers 
+    ORDER BY NEWID();
+    
+    -- Seleccionar un método de pago aleatorio de los existentes
+    SELECT TOP 1 @randomMethod = PaymentMethodId 
+    FROM SocaiPaymentMethods 
+    WHERE enable = 1 AND PaymentMethodId IN (0, 1, 2, 6, 9) -- Usar métodos populares
+    ORDER BY NEWID();
+    
+    -- Buscar un DataPaymentId para este usuario y método
+    SELECT TOP 1 @dataPaymentId = DataPaymentId
+    FROM SocaiDataPayments
+    WHERE UserId = @randomUser AND PaymentMethodId = @randomMethod;
+    
+    -- Si no existe, lo creamos
+    IF @dataPaymentId IS NULL
+    BEGIN
+        INSERT INTO SocaiDataPayments (name, token, expToken, maskAccount, UserId, PaymentMethodId)
+        VALUES (
+            CASE 
+                WHEN @randomMethod = 0 THEN 'Visa Personal'
+                WHEN @randomMethod = 1 THEN 'Mastercard Principal'
+                WHEN @randomMethod = 2 THEN 'American Express Gold'
+                WHEN @randomMethod = 6 THEN 'Cuenta PayPal'
+                WHEN @randomMethod = 9 THEN 'SINPE Movil'
+                ELSE 'Método de pago ' + CAST(@randomMethod AS VARCHAR)
+            END, 
+            CAST('token_auto_' + CAST(@paymentCounter AS VARCHAR) AS VARBINARY(255)), 
+            DATEADD(YEAR, 1, GETDATE()), 
+            CAST('****' + RIGHT('1000' + CAST((@randomUser * 10 + @randomMethod) AS VARCHAR), 4) AS VARBINARY(255)), 
+            @randomUser, 
+            @randomMethod
+        );
+        
+        SET @dataPaymentId = SCOPE_IDENTITY();
+        PRINT 'Nuevo DataPayment creado para usuario ' + CAST(@randomUser AS VARCHAR) + 
+              ', método ' + CAST(@randomMethod AS VARCHAR);
+    END
+    
+    -- Monto aleatorio entre 10,000 y 100,000
+    SET @randomAmount = 10000 + (CAST(RAND() * 90000 AS INT));
+    
+    -- Insertar el pago - esto activará el trigger
+    BEGIN TRY
+        INSERT INTO SocaiPayments (
+            amount, actualAmount, authentication, reference, chargeToken, date,
+            checksum, DataPaymentId, PaymentMethodId, UserId, ResultPaymentId, CurrencyTypeId
+        )
+        VALUES (
+            @randomAmount, 
+            @randomAmount, 
+            'AUTH' + RIGHT('00000' + CAST(@paymentCounter AS VARCHAR), 5), 
+            '   REF-' + CAST(@paymentCounter AS VARCHAR) + '-' + CONVERT(VARCHAR(8), GETDATE(), 112) + '   ', -- Espacios para probar LTRIM 
+            CAST('token_pay_' + CAST(@paymentCounter AS VARCHAR) AS VARBINARY(250)), 
+            DATEADD(MINUTE, -@paymentCounter * 10, GETDATE()), -- Pagos distribuidos en el tiempo
+            CAST('checksum_' + CAST(@paymentCounter AS VARCHAR) AS VARBINARY(250)), 
+            @dataPaymentId, 
+            @randomMethod, 
+            @randomUser, 
+            @resultPaymentId, 
+            0 -- Usar el CurrencyTypeId 0
+        );
+        
+        PRINT 'Pago #' + CAST(@paymentCounter AS VARCHAR) + ' insertado para usuario ' + CAST(@randomUser AS VARCHAR);
+    END TRY
+    BEGIN CATCH
+        PRINT 'Error al insertar pago #' + CAST(@paymentCounter AS VARCHAR) + ': ' + ERROR_MESSAGE();
+    END CATCH
+    
+    SET @paymentCounter = @paymentCounter + 1;
+END
+```
+Ok ahora que tenemos la generacion de pagos realizada junto con la asignacion a usuarios realizaramos unas verificaciones de que se hayan ejecutado estas instrucciones.
+
+#### TOP
+Vamos a ver los ultimos 5 logs creados.
+
+``` sql
+PRINT '=== TOP: Últimos 5 logs creados ===';
+SELECT TOP 5 LogId, description, postTime, value1, value2, UserId, TransactionId
+FROM SocaiLogs
+ORDER BY postTime DESC;
+```
+
+| LogId | description                                   | post Time                  | value1          | value2 | UserId | TransactionId |
+|-------|----------------------------------------------|----------------------------|-----------------|--------|--------|---------------|
+| 58    | Page registrado: Usuario ID 15 realizó pago de 3.. | 2025-05-06 23:16:38.413 | PayPal          | 36242  | 15     | 33            |
+| 55    | Page registrado: Usuario ID 5 realizó pago de 75.. | 2025-05-06 23:16:38.410 | Mastercard      | 75899  | 5      | 30            |
+| 56    | Page registrado: Usuario ID 7 realizó pago de 73.. | 2025-05-06 23:16:38.410 | American Express | 73857  | 7      | 31            |
+| 57    | Page registrado: Usuario ID 22 realizó pago de 3.. | 2025-05-06 23:16:38.410 | Visa            | 34401  | 22     | 32            |
+| 53    | Page registrado: Usuario ID 7 realizó pago de 39.. | 2025-05-06 23:16:38.407 | American Express | 39274  | 7      | 28            |
+
+#### DISTINCT
+Ver métodos de pago únicos utilizados en el sistema.
+
+``` sql
+PRINT '=== DISTINCT: Métodos de pago únicos utilizados ===';
+SELECT DISTINCT pm.name AS 'Método de Pago'
+FROM SocaiPayments p
+JOIN SocaiPaymentMethods pm ON p.PaymentMethodId = pm.PaymentMethodId
+ORDER BY pm.name;
+```
+
+|    | Método de Pago  |
+|---|-----------------|
+| 1 | American Express |
+| 2 | Mastercard       |
+| 3 | PayPal           |
+| 4 | Visa             |
+
+#### -- TOP y DISTINCT combinados
+Vamos a mostrar los 3 usuarios con más transacciones.
+
+``` sql
+PRINT '=== TOP + DISTINCT: Top 3 usuarios con más transacciones ===';
+SELECT TOP 3 u.Name AS 'Usuario', COUNT(DISTINCT t.TransactionId) AS 'Total de Transacciones'
+FROM SocaiUsers u
+JOIN SocaiTransactions t ON u.UserId = t.UserId
+GROUP BY u.UserId, u.Name
+ORDER BY COUNT(DISTINCT t.TransactionId) DESC;
+```
+| Usuario             | Total de Transacciones |
+|---------------------|-----------------------|
+| Alejandro Aguilar   | 3                     |
+| Ferran Fernandez    | 2                     |
+| Alejandro Lopez     | 1                     |
+
+#### SUBSTRING
+Lo usamos para demostrar texto truncado.
+
+``` sql
+PRINT '=== SUBSTRING: Descripción de transacciones truncada ===';
+SELECT TransactionId, 
+       SUBSTRING(description, 1, 30) + '...' AS 'Descripción Truncada',
+       description AS 'Descripción Completa'
+FROM SocaiTransactions
+ORDER BY TransactionId DESC;
+```
+| #  | TransactionId | Descripción Truncada                    | Descripción Completa                        |
+|----|--------------|----------------------------------------|---------------------------------------------|
+| 1  | 33           | Transacción generada a partir ...       | Transacción generada a partir de pago ID. 34 |
+| 2  | 32           | Transacción generada a partir ...       | Transacción generada a partir de pago ID. 33 |
+| 3  | 31           | Transacción generada a partir ...       | Transacción generada a partir de pago ID. 32 |
+| 4  | 30           | Transacción generada a partir ...       | Transacción generada a partir de pago ID. 31 |
+| 5  | 29           | Transacción generada a partir ...       | Transacción generada a partir de pago ID. 30 |
+| 6  | 28           | Transacción generada a partir ...       | Transacción generada a partir de pago ID. 29 |
+| 7  | 27           | Transacción generada a partir ...       | Transacción generada a partir de pago ID. 28 |
+| 8  | 26           | Transacción generada a partir ...       | Transacción generada a partir de pago ID. 27 |
+| 9  | 25           | Transacción generada a partir ...       | Transacción generada a partir de pago ID. 26 |
+| 10 | 24           | Transacción generada a partir ...       | Transacción generada a partir de pago ID. 25 |
+| 11 | 23           | Transacción generada a partir ...       | Transacción generada a partir de pago ID. 24 |
+| 12 | 22           | Transacción generada a partir ...       | Transacción generada a partir de pago ID. 23 |
+| 13 | 21           | Transacción generada a partir ...       | Transacción generada a partir de pago ID. 22 |
+| 14 | 20           | Transacción generada a partir ...       | Transacción generada a partir de pago ID. 21 |
+| 15 | 19           | Transacción generada a partir ...       | Transacción generada a partir de pago ID. 20 |
+
+
+#### LTRIM
+Demostrar limpieza de espacios.
+
+``` sql
+PRINT '=== LTRIM: Referencias de pago sin espacios iniciales ===';
+SELECT p.PaymentId, 
+       '|' + p.reference + '|' AS 'Referencia Original',
+       '|' + LTRIM(p.reference) + '|' AS 'Referencia sin Espacios Iniciales'
+FROM SocaiPayments p
+ORDER BY p.PaymentId DESC;
+```
+| #  | PaymentId | Reference Original      | Reference sin Espacios |
+|----|-----------|-------------------------|------------------------|
+| 1  | 34        | I REF-15-20250506       | IREF-15-20250506       |
+| 2  | 33        | I REF-14-20250506       | IREF-14-20250506       |
+| 3  | 32        | I REF-13-20250506       | IREF-13-20250506       |
+| 4  | 31        | I REF-12-20250506       | IREF-12-20250506       |
+| 5  | 30        | I REF-11-20250506       | IREF-11-20250506       |
+| 6  | 29        | I REF-10-20250506       | IREF-10-20250506       |
+| 7  | 28        | I REF-9-20250506        | IREF-9-20250506        |
+| 8  | 27        | I REF-8-20250506        | IREF-8-20250506        |
+| 9  | 26        | I REF-7-20250506        | IREF-7-20250506        |
+| 10 | 25        | I REF-6-20250506        | IREF-6-20250506        |
+| 11 | 24        | I REF-5-20250506        | IREF-5-20250506        |
+| 12 | 23        | I REF-4-20250506        | IREF-4-20250506        |
+| 13 | 22        | I REF-3-20250506        | IREF-3-20250506        |
+| 14 | 21        | I REF-2-20250506        | IREF-2-20250506        |
+| 15 | 20        | I REF-1-20250506        | IREF-1-20250506        |
+
+#### COALESCE
+Demostramos el manejo de valores nulos.
+
+``` sql
+PRINT '=== COALESCE: Manejo de valores nulos en montos ===';
+SELECT p.PaymentId,
+       p.amount AS 'Monto Original',
+       p.actualAmount AS 'Monto Actual',
+       COALESCE(p.actualAmount, p.amount, 0) AS 'Monto Final (con COALESCE)'
+FROM SocaiPayments p
+ORDER BY p.PaymentId DESC;
+
+```
+| #  | PaymentId | Monto Original | Monto Actual | Monto Final (con COALESCE) |
+|----|-----------|---------------|--------------|----------------------------|
+| 1  | 34        | 36242         | 36242        | 36242                      |
+| 2  | 33        | 34401         | 34401        | 34401                      |
+| 3  | 32        | 73857         | 73857        | 73857                      |
+| 4  | 31        | 75899         | 75899        | 75899                      |
+| 5  | 30        | 71324         | 71324        | 71324                      |
+| 6  | 29        | 39274         | 39274        | 39274                      |
+| 7  | 28        | 95069         | 95069        | 95069                      |
+| 8  | 27        | 52276         | 52276        | 52276                      |
+| 9  | 26        | 14798         | 14798        | 14798                      |
+| 10 | 25        | 99824         | 99824        | 99824                      |
+| 11 | 24        | 19791         | 19791        | 19791                      |
+| 12 | 23        | 41900         | 41900        | 41900                      |
+| 13 | 22        | 45408         | 45408        | 45408                      |
+| 14 | 21        | 45408         | 45408        | 45408                      |
+| 15 | 20        | 70433         | 70433        | 70433                      |
+
+### SCHEMABINDING,  WITH ENCRYPTION, sp_recompile, AVG con agrupamiento, UNION, MERGE
+Este seria el conjunto de instrucciones que usariamos para hacer un query de promedio de pagos por usuario.
+
+1. SCHEMABINDING - Demostrado en la vista vw_PromedioPagosPorUsuario
+2. WITH ENCRYPTION - Demostrado en los procedimientos SP_RegistrarRecompilacion y SP_RecompilacionPeriodica
+3. sp_recompile - Implementado en el procedimiento de recompilación periódica
+4. AVG con agrupamiento - Implementado en la vista a través de SUM/COUNT
+5. UNION - Demostrado en la consulta de planes individuales y empresariales
+6. MERGE - Demostrado en la sincronización de datos de suscripciones
+
+``` sql
+CREATE VIEW dbo.vw_PromedioPagosPorUsuario WITH SCHEMABINDING
+AS
+SELECT 
+    u.UserId,
+    u.Name AS NombreUsuario,
+    COUNT_BIG(*) AS TotalPagos,
+    SUM(ISNULL(p.amount, 0)) AS SumaTotal,
+    COUNT_BIG(p.amount) AS ConteoValores,
+    SUM(ISNULL(p.amount, 0)) AS MontoTotal
+FROM 
+    dbo.SocaiUsers u
+    INNER JOIN dbo.SocaiPayments p ON u.UserId = p.UserId
+GROUP BY 
+    u.UserId, 
+    u.Name;
+GO
+
+CREATE UNIQUE CLUSTERED INDEX IX_vw_PromedioPagosPorUsuario
+ON dbo.vw_PromedioPagosPorUsuario(UserId);
+GO
+
+-- 2. Procedimiento para recompilar SP periódicamente (WITH ENCRYPTION)
+CREATE OR ALTER PROCEDURE dbo.SP_RecompilacionProcedimientos
+WITH ENCRYPTION
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    -- Variables para el proceso
+    DECLARE @SPName NVARCHAR(255);
+    DECLARE @SQL NVARCHAR(500);
+    DECLARE @Count INT = 0;
+    DECLARE @LogMessage NVARCHAR(500);
+    DECLARE @DummyTransactionId INT;
+    
+    -- Crear una transacción temporal para tener un ID de transacción
+    -- Primero necesitamos obtener IDs válidos para las tablas relacionadas
+    DECLARE @UserId INT = 1; -- Usar un ID de usuario existente
+    DECLARE @PaymentId INT;
+    DECLARE @PaymentMethodId INT = 1; -- Usar un ID de método de pago existente
+    DECLARE @ResultPaymentId INT = 0; -- Usar un ID de resultado de pago existente
+    DECLARE @CurrencyTypeId INT = 0; -- Usar un ID de moneda existente
+    DECLARE @DataPaymentId INT;
+    
+    -- Verificar si existe un DataPaymentId para este usuario y método de pago
+    SELECT TOP 1 @DataPaymentId = DataPaymentId 
+    FROM SocaiDataPayments 
+    WHERE UserId = @UserId AND PaymentMethodId = @PaymentMethodId;
+    
+    -- Si no existe, usar el primer DataPaymentId disponible
+    IF @DataPaymentId IS NULL
+    BEGIN
+        SELECT TOP 1 @DataPaymentId = DataPaymentId 
+        FROM SocaiDataPayments;
+    END
+    
+    -- Crear una transacción temporal para tener un ID de transacción
+    BEGIN TRANSACTION;
+    
+    -- Insertar un registro en SocaiPayments para obtener un PaymentId
+    INSERT INTO SocaiPayments (
+        amount, actualAmount, authentication, reference, chargeToken, date,
+        checksum, DataPaymentId, PaymentMethodId, UserId, ResultPaymentId, CurrencyTypeId
+    )
+    VALUES (
+        1.00, 1.00, 'RECOMPILE_AUTH', 'RECOMPILE_REF', 
+        CAST('recompile_token' AS VARBINARY(250)), GETDATE(),
+        CAST('recompile_checksum' AS VARBINARY(250)),
+        @DataPaymentId, @PaymentMethodId, @UserId, @ResultPaymentId, @CurrencyTypeId
+    );
+    
+    -- Obtener el PaymentId generado
+    SET @PaymentId = SCOPE_IDENTITY();
+    
+    -- Insertar un registro en SocaiTransactions para obtener un TransactionId
+    INSERT INTO SocaiTransactions (
+        amount, description, transactionDateTime, postTime, referenceNumber,
+        checksum, TransactionTypeId, TransactionSubTypeId, CurrencyTypeId,
+        PaymentId, UserId, ExchangeRateId
+    )
+    VALUES (
+        1.00, 'Transacción temporal para recompilación', GETDATE(), GETDATE(),
+        'RECOMPILE_REF', CAST('recompile_checksum' AS VARBINARY(250)),
+        0, 0, @CurrencyTypeId, @PaymentId, @UserId, 1
+    );
+    
+    -- Obtener el TransactionId generado
+    SET @DummyTransactionId = SCOPE_IDENTITY();
+    
+    -- Cursor para recorrer todos los procedimientos almacenados
+    DECLARE SP_Cursor CURSOR FOR
+        SELECT SCHEMA_NAME(schema_id) + '.' + name
+        FROM sys.procedures
+        WHERE is_ms_shipped = 0;
+    
+    OPEN SP_Cursor;
+    FETCH NEXT FROM SP_Cursor INTO @SPName;
+    
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+        -- Ejecutar sp_recompile para el procedimiento actual
+        BEGIN TRY
+            SET @SQL = 'EXEC sp_recompile ''' + @SPName + '''';
+            EXEC (@SQL);
+            
+            -- Registrar en SocaiLogs (tabla existente)
+            SET @LogMessage = 'Procedimiento recompilado: ' + @SPName;
+            
+            INSERT INTO SocaiLogs (
+                description, postTime, computer, username, trace, 
+                LogTypeId, LogSourceId, LogSeverityId, UserId, TransactionId
+            )
+            VALUES (
+                @LogMessage, GETDATE(), HOST_NAME(), SYSTEM_USER, 'SP_RecompilacionProcedimientos',
+                3, 0, 0, @UserId, @DummyTransactionId
+            );
+            
+            PRINT 'Object ''' + @SPName + ''' was successfully marked for recompilation.';
+        END TRY
+        BEGIN CATCH
+            PRINT 'Error al recompilar ' + @SPName + ': ' + ERROR_MESSAGE();
+        END CATCH
+        
+        SET @Count = @Count + 1;
+        FETCH NEXT FROM SP_Cursor INTO @SPName;
+    END
+
+    CLOSE SP_Cursor;
+    DEALLOCATE SP_Cursor;
+    
+    -- Registrar resumen en SocaiLogs
+    SET @LogMessage = 'Recompilación completada. ' + CAST(@Count AS VARCHAR) + ' procedimientos recompilados.';
+    
+    INSERT INTO SocaiLogs (
+        description, postTime, computer, username, trace, 
+        LogTypeId, LogSourceId, LogSeverityId, UserId, TransactionId
+    )
+    VALUES (
+        @LogMessage, GETDATE(), HOST_NAME(), SYSTEM_USER, 'SP_RecompilacionProcedimientos',
+        3, 0, 0, @UserId, @DummyTransactionId
+    );
+    
+    -- Finalizar la transacción
+    COMMIT TRANSACTION;
+    
+    -- Mostrar estadísticas de pagos usando la vista con SCHEMABINDING
+    SELECT TOP 5 
+        NombreUsuario,
+        TotalPagos,
+        CASE 
+            WHEN ConteoValores > 0 THEN SumaTotal / CAST(ConteoValores AS DECIMAL(18,2))
+            ELSE 0 
+        END AS MontoPagoPromedio,
+        MontoTotal
+    FROM dbo.vw_PromedioPagosPorUsuario
+    ORDER BY MontoTotal DESC;
+    
+    PRINT @LogMessage;
+END;
+GO
+
+-- 3. Ejecutar la recompilación para probar
+EXEC dbo.SP_RecompilacionProcedimientos;
+GO
+
+```
+#### Ejecucion del SP
+
+| #  | NombreUsuario      | TotalPagos | MontoPagoPromedio | MontoTotal |
+|----|-------------------|------------|-------------------|------------|
+| 1  | Alejandro Aguilar | 3          | 62948.000000      | 188844     |
+| 2  | Ferran Fernandez  | 2          | 56565.500000      | 113131     |
+| 3  | Alejandro Aguilar | 1          | 95069.000000      | 95069      |
+| 4  | Alejandro Aguilar | 1          | 75899.000000      | 75899      |
+| 5  | Adrian Aguilar    | 1          | 71324.000000      | 71324      |
+
+#### SP_Encryptado
+Demostramos que es imposible ver un codigo con SP encryptado.
+
+``` sql
+PRINT 'Intentando ver el código del procedimiento encriptado:';
+SELECT OBJECT_DEFINITION(OBJECT_ID('dbo.SP_RecompilacionProcedimientos')) AS CodigoEncriptado;
+GO
+```
+| CodigoEncriptado |
+|------------------|
+| NULL             |
+
+#### SCHEMABINDING
+Intentar modificar una tabla base, esto debería fallar.
+``` sql
+PRINT 'Intentando modificar una columna en tabla referenciada por vista con SCHEMABINDING:';
+BEGIN TRY
+    ALTER TABLE dbo.SocaiUsers DROP COLUMN Name;
+    PRINT 'La modificación fue exitosa (esto no debería verse)';
+END TRY
+BEGIN CATCH
+    PRINT 'Error al modificar: ' + ERROR_MESSAGE();
+    PRINT 'La modificación falló debido a SCHEMABINDING (comportamiento correcto)';
+END CATCH;
+GO
+```
+Mensaje de Fallo: 
+Intentando modificar una columna en tabla referenciada por vista con SCHEMABINDING:
+Error al modificar: ALTER TABLE DROP COLUMN Name failed because one or more objects access this column.
+La modificación falló debido a SCHEMABINDING (comportamiento correcto)
+
+Hora de finalización: 2025-05-06T23:42:25.8116570-06:00
+
+#### UNION
+Demostrar union con planes de suscripcion.
+
+| TipoSuscripcion | SubscriptionId | NombrePlan             | Precio     |
+|-----------------|---------------|------------------------|------------|
+| Empresarial     | 8             | Hogar y Cuidado        | 60000.00   |
+| Empresarial     | 9             | Amante de la Gastronomia| 60000.00  |
+| Empresarial     | 5             | Entusiasta al Gym      | 55000.00   |
+| Empresarial     | 7             | Amante de Mascotas     | 50000.00   |
+| Empresarial     | 6             | Movilidad Urbana       | 45000.00   |
+| Individual      | 3             | Familia Moderna        | 110000.00  |
+| Individual      | 4             | Ejecutivo Premium      | 95000.00   |
+| Individual      | 2             | Profesional Joven      | 65000.00   |
+
+#### MERGE
+Para sincronizar datos entre tablas existentes, en este caso, usamos SocaiPaymentMethods para actualizar la tabla SocaiDataPayments.
+
+``` sql
+PRINT 'Demostración de MERGE para sincronización de datos:';
+
+BEGIN TRANSACTION;
+
+-- Mostrar datos antes del MERGE
+SELECT 'Antes de MERGE - SocaiDataPayments' AS Estado, 
+       dp.DataPaymentId, dp.name, dp.UserId, dp.PaymentMethodId
+FROM SocaiDataPayments dp
+JOIN SocaiUsers u ON dp.UserId = u.UserId
+ORDER BY dp.DataPaymentId;
+
+-- Ejecutar MERGE para actualizar nombres de métodos de pago en DataPayments
+-- basado en la tabla SocaiPaymentMethods
+MERGE SocaiDataPayments AS destino
+USING (
+    SELECT dp.DataPaymentId, dp.UserId, dp.PaymentMethodId, 
+           pm.name AS PaymentMethodName
+    FROM SocaiDataPayments dp
+    JOIN SocaiPaymentMethods pm ON dp.PaymentMethodId = pm.PaymentMethodId
+) AS origen
+ON destino.DataPaymentId = origen.DataPaymentId
+WHEN MATCHED THEN
+    UPDATE SET 
+        destino.name = origen.PaymentMethodName + ' - ' + CAST(origen.UserId AS VARCHAR);
+
+-- Mostrar datos después del MERGE
+SELECT 'Después de MERGE - SocaiDataPayments' AS Estado, 
+       dp.DataPaymentId, dp.name, dp.UserId, dp.PaymentMethodId
+FROM SocaiDataPayments dp
+JOIN SocaiUsers u ON dp.UserId = u.UserId
+ORDER BY dp.DataPaymentId;
+
+-- Revertir los cambios para no afectar la base de datos
+ROLLBACK TRANSACTION;
+GO
+```
+| Estado                                   | DataPaymentId | name                  | UserId | PaymentMethodId |
+|-------------------------------------------|---------------|-----------------------|--------|-----------------|
+| Antes de MERGE - SociaIDataPayments       | 20            | Cuenta PayPal         | 1      | 6               |
+| Antes de MERGE - SociaIDataPayments       | 21            | American Express Gold | 1      | 2               |
+| Antes de MERGE - SociaIDataPayments       | 22            | Mastercard Principal  | 1      | 1               |
+| Antes de MERGE - SociaIDataPayments       | 23            | Cuenta PayPal         | 2      | 6               |
+| Antes de MERGE - SociaIDataPayments       | 24            | American Express Gold | 2      | 2               |
+| Antes de MERGE - SociaIDataPayments       | 25            | SINPE Movil           | 3      | 9               |
+| Antes de MERGE - SociaIDataPayments       | 26            | SINPE Movil           | 3      | 9               |
+| Antes de MERGE - SociaIDataPayments       | 27            | American Express Gold | 3      | 2               |
+| Antes de MERGE - SociaIDataPayments       | 28            | Cuenta PayPal         | 3      | 6               |
+| Antes de MERGE - SociaIDataPayments       | 29            | Cuenta PayPal         | 4      | 6               |
+| Antes de MERGE - SociaIDataPayments       | 30            | American Express Gold | 4      | 2               |
+| Antes de MERGE - SociaIDataPayments       | 31            | Visa Personal         | 4      | 0               |
+| Antes de MERGE - SociaIDataPayments       | 32            | Cuenta PayPal         | 5      | 6               |
+| Antes de MERGE - SociaIDataPayments       | 33            | SINPE Movil           | 5      | 9               |
+| Antes de MERGE - SociaIDataPayments       | 34            | Mastercard Principal  | 5      | 1               |
+| Antes de MERGE - SociaIDataPayments       | 35            | Cuenta PayPal         | 17     | 6               |
+
+| Estado                                    | DataPaymentId | name                  | UserId | PaymentMethodId |
+|--------------------------------------------|---------------|-----------------------|--------|-----------------|
+| Después de MERGE - SociaIDataPayments      | 20            | PayPal - 1            | 1      | 6               |
+| Después de MERGE - SociaIDataPayments      | 21            | American Express - 1  | 1      | 2               |
+| Después de MERGE - SociaIDataPayments      | 22            | Mastercard - 1        | 1      | 1               |
+| Después de MERGE - SociaIDataPayments      | 23            | PayPal - 2            | 2      | 6               |
+| Después de MERGE - SociaIDataPayments      | 24            | American Express - 2  | 2      | 2               |
+| Después de MERGE - SociaIDataPayments      | 25            | SINPE Movil - 2       | 3      | 9               |
+| Después de MERGE - SociaIDataPayments      | 26            | SINPE Movil - 3       | 3      | 9               |
+| Después de MERGE - SociaIDataPayments      | 27            | American Express - 3  | 3      | 2               |
+| Después de MERGE - SociaIDataPayments      | 28            | PayPal - 3            | 3      | 6               |
+| Después de MERGE - SociaIDataPayments      | 29            | American Express - 4  | 4      | 2               |
+| Después de MERGE - SociaIDataPayments      | 30            | Visa Personal         | 4      | 0               |
+| Después de MERGE - SociaIDataPayments      | 31            | PayPal - 4            | 4      | 6               |
+| Después de MERGE - SociaIDataPayments      | 32            | SINPE Movil - 5       | 5      | 9               |
+| Después de MERGE - SociaIDataPayments      | 33            | Mastercard - 5        | 5      | 1               |
+| Después de MERGE - SociaIDataPayments      | 34            | PayPal - 5            | 5      | 6               |
+| Después de MERGE - SociaIDataPayments      | 35            | PayPal - 17           | 17     | 6               |
+
+#### AVG
+Mostrar AVG con agrupamiento directamente desde las tablas
+
+``` sql
+PRINT 'Demostración de AVG con agrupamiento:';
+SELECT 
+    u.Name AS NombreUsuario,
+    COUNT(*) AS TotalPagos,
+    AVG(p.amount) AS MontoPagoPromedio,
+    SUM(p.amount) AS MontoTotal
+FROM 
+    SocaiUsers u
+    INNER JOIN SocaiPayments p ON u.UserId = p.UserId
+GROUP BY 
+    u.UserId, u.Name
+ORDER BY 
+    MontoTotal DESC;
+GO
+```
+| #  | NombreUsuario        | TotalPagos | MontoPagoPromedio | MontoTotal |
+|----|---------------------|------------|-------------------|------------|
+| 1  | Alejandro Aguilar   | 3          | 62948.000000      | 188844     |
+| 2  | Ferran Fernandez    | 2          | 56565.500000      | 113131     |
+| 3  | Alejandro Aguilar   | 1          | 95069.000000      | 95069      |
+| 4  | Alejandro Aguilar   | 1          | 75899.000000      | 75899      |
+| 5  | Adrian Aguilar      | 1          | 71324.000000      | 71324      |
+| 6  | David Gomez         | 1          | 70433.000000      | 70433      |
+| 7  | Alejandro Lopez     | 1          | 45408.000000      | 45408      |
+| 8  | Alejandro Aguilar   | 1          | 41900.000000      | 41900      |
+| 9  | Carlos Sanchez      | 1          | 36242.000000      | 36242      |
+| 10 | Alejandro Cruz      | 1          | 34401.000000      | 34401      |
+| 11 | Lamine Vargas       | 1          | 14798.000000      | 14798      |
+| 12 | Alejandro Vargas    | 1          | 14798.000000      | 14798      |
+| 13 | Pedro Aguilar       | 1          | 1.000000          | 1          |
+
+#### EXECUTE AS 
+Creamos un usuario con permisos limitados.
+
+``` sql
+--- Execute As ----
+
+-- Crear usuario con permisos limitados
+CREATE USER UsuarioLectura WITHOUT LOGIN;
+GO
+
+-- Otorgar permisos de solo lectura
+GRANT SELECT ON SocaiSubscriptions TO UsuarioLectura;
+DENY UPDATE ON SocaiSubscriptions TO UsuarioLectura;
+-- Conceder permiso para ejecutar el procedimiento
+GRANT EXECUTE ON SP_ActualizarPrecios TO UsuarioLectura;
+GO
+
+-- Crear procedimiento con impersonificación
+CREATE PROCEDURE SP_ActualizarPrecios
+    @Porcentaje DECIMAL(5,2)
+WITH EXECUTE AS 'dbo'  -- Usando WITH EXECUTE AS
+AS
+BEGIN
+    -- Esta actualización funcionará aunque el usuario que llame
+    -- al procedimiento no tenga permisos de actualización
+    UPDATE SocaiSubscriptions 
+    SET amount = amount * (1 + (@Porcentaje/100));
+    
+    PRINT 'Precios actualizados por usuario: ' + CAST(CURRENT_USER AS VARCHAR(50));
+END;
+GO
+```
+Aqui luega la verificacuion.
+``` sql
+-- Demostrar que funciona
+EXECUTE AS USER = 'UsuarioLectura';
+GO
+EXEC SP_ActualizarPrecios @Porcentaje = 5.0;
+GO
+REVERT;  -- Regresar al contexto original
+GO
+```
+
+Este mensaje nos da a entender que, aunque el usuario 'UsuarioLectura' no tiene permisos para actualizar la tabla directamente, pudo hacerlo a través del procedimiento almacenado que se ejecuta con los privilegios del propietario de la base de datos (dbo).
+
+(8 filas afectadas)
+Precios actualizados por usuario: dbo
+
+Hora de finalización: 2025-05-06T23:50:35.1002445-06:00
+
 
 ## 3. Mantenimiento de la Seguridad (Santi)
 *(corresponde al script `Scripts&Queries Mantenimiento de Seguridad.sql`)*
