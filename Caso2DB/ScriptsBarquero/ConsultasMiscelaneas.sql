@@ -1,3 +1,5 @@
+USE [Caso2]
+GO
 -- 1. Vista indexada con al menos 4 tablas
 CREATE OR ALTER VIEW dbo.vwResumenUsuarios
 WITH SCHEMABINDING
@@ -679,3 +681,239 @@ BEGIN
         SELECT 'Error generating CSV file' AS Result;
 END;
 GO
+
+-- 10. Configuración de tabla de bitácora en otro servidor SQL Server
+--  Configuración del Linked Server (ejecutar en el servidor principal)
+
+USE [master]
+GO
+
+EXEC master.dbo.sp_addlinkedserver 
+    @server = N'CENTRAL_LOG_SERVER', 
+    @srvproduct = N'',
+    @provider = N'SQLOLEDB', 
+    @datasrc = N'localhost';
+GO
+
+
+EXEC master.dbo.sp_addlinkedsrvlogin 
+    @rmtsrvname = N'CENTRAL_LOG_SERVER',
+    @useself = N'TRUE';
+GO
+
+
+EXEC master.dbo.sp_serveroption 
+    @server = N'CENTRAL_LOG_SERVER', 
+    @optname = N'rpc', 
+    @optvalue = N'true'
+GO
+
+EXEC master.dbo.sp_serveroption 
+    @server = N'CENTRAL_LOG_SERVER', 
+    @optname = N'rpc out', 
+    @optvalue = N'true'
+GO
+--  Crear la base de datos y tabla en el servidor remoto
+
+
+-- Crear la base de datos de logs si no existe
+EXEC('
+IF NOT EXISTS (SELECT * FROM sys.databases WHERE name = ''LoggingDB'')
+BEGIN
+    CREATE DATABASE LoggingDB;
+END
+') AT CENTRAL_LOG_SERVER;
+GO
+
+-- Usar la base de datos y crear la tabla de logs
+EXEC('
+USE LoggingDB;
+
+IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = ''SocaiRemoteLogs'')
+BEGIN
+    CREATE TABLE dbo.SocaiRemoteLogs(
+        RemoteLogId INT IDENTITY(1,1) PRIMARY KEY,
+        SourceServer VARCHAR(100) NOT NULL,
+        SourceDatabase VARCHAR(100) NOT NULL,
+        SourceProcedure VARCHAR(255) NULL,
+        LogLevel VARCHAR(20) NOT NULL,
+        Message VARCHAR(4000) NOT NULL,
+        AdditionalInfo VARCHAR(MAX) NULL,
+        UserName VARCHAR(100) NULL,
+        HostName VARCHAR(100) NULL,
+        ExecutionTime DATETIME2 NOT NULL DEFAULT GETDATE(),
+        RelatedEntityId INT NULL,
+        RelatedEntityType VARCHAR(50) NULL,
+        OriginalLogId INT NULL,
+        SessionId INT NULL,
+        ErrorNumber INT NULL,
+        ErrorLine INT NULL,
+        ErrorState INT NULL,
+        ErrorSeverity INT NULL,
+        ErrorProcedure VARCHAR(255) NULL
+    );
+    
+    CREATE INDEX IX_SocaiRemoteLogs_LogLevel ON SocaiRemoteLogs(LogLevel);
+    CREATE INDEX IX_SocaiRemoteLogs_ExecutionTime ON SocaiRemoteLogs(ExecutionTime);
+    CREATE INDEX IX_SocaiRemoteLogs_SourceProcedure ON SocaiRemoteLogs(SourceProcedure);
+END
+') AT CENTRAL_LOG_SERVER;
+GO
+
+--Crear el procedimiento almacenado genérico en el servidor principal
+USE [Caso2]
+GO
+
+DROP PROCEDURE IF EXISTS dbo.sp_LogToRemoteServer;
+GO
+DROP PROCEDURE IF EXISTS dbo.sp_EjemploUsoBitacoraRemota;
+GO
+
+CREATE PROCEDURE dbo.sp_LogToRemoteServer
+    @LogLevel VARCHAR(20),
+    @Message VARCHAR(4000),
+    @AdditionalInfo VARCHAR(MAX) = NULL,
+    @SourceProcedure VARCHAR(255) = NULL,
+    @RelatedEntityId INT = NULL,
+    @RelatedEntityType VARCHAR(50) = NULL,
+    @OriginalLogId INT = NULL,
+    @ErrorNumber INT = NULL,
+    @ErrorLine INT = NULL,
+    @ErrorState INT = NULL,
+    @ErrorSeverity INT = NULL,
+    @ErrorProcedure VARCHAR(255) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    -- Capturar información del contexto
+    DECLARE @SourceServer VARCHAR(100) = @@SERVERNAME;
+    DECLARE @SourceDatabase VARCHAR(100) = DB_NAME();
+    DECLARE @UserName VARCHAR(100) = SUSER_SNAME();
+    DECLARE @HostName VARCHAR(100) = HOST_NAME();
+    DECLARE @SessionId INT = @@SPID;
+    
+    -- Si no se proporciona el procedimiento fuente, intentar capturarlo
+    IF @SourceProcedure IS NULL
+        SET @SourceProcedure = OBJECT_NAME(@@PROCID);
+    
+    BEGIN TRY
+        -- Insertar en la tabla de bitácora remota
+        INSERT INTO CENTRAL_LOG_SERVER.LoggingDB.dbo.SocaiRemoteLogs
+        (
+            SourceServer, SourceDatabase, SourceProcedure, LogLevel, 
+            Message, AdditionalInfo, UserName, HostName, ExecutionTime,
+            RelatedEntityId, RelatedEntityType, OriginalLogId, SessionId, 
+            ErrorNumber, ErrorLine, ErrorState, ErrorSeverity, ErrorProcedure
+        )
+        VALUES
+        (
+            @SourceServer, @SourceDatabase, @SourceProcedure, @LogLevel,
+            @Message, @AdditionalInfo, @UserName, @HostName, GETDATE(),
+            @RelatedEntityId, @RelatedEntityType, @OriginalLogId, @SessionId,
+            @ErrorNumber, @ErrorLine, @ErrorState, @ErrorSeverity, @ErrorProcedure
+        );
+        
+        -- Registrar también localmente en caso de falla de conectividad (redundancia)
+        INSERT INTO dbo.SocaiLogs 
+        (
+            description, postTime, computer, username, trace, 
+            LogTypeId, LogSourceId, LogSeverityId, UserId, TransactionId
+        )
+        VALUES
+        (
+            @Message, 
+            GETDATE(), 
+            @HostName, 
+            @UserName,
+            ISNULL(@AdditionalInfo, N'Remote logging enabled'),
+            -- Mapear LogLevel a LogTypeId
+            CASE @LogLevel 
+                WHEN 'Information' THEN 1
+                WHEN 'Warning' THEN 2
+                WHEN 'Error' THEN 3
+                WHEN 'Critical' THEN 4
+                ELSE 1
+            END,
+            5, -- Fuente: Remote Logging
+            CASE @LogLevel 
+                WHEN 'Information' THEN 1
+                WHEN 'Warning' THEN 2
+                WHEN 'Error' THEN 3
+                WHEN 'Critical' THEN 4
+                ELSE 1
+            END,
+            ISNULL(@RelatedEntityId, 1), -- Usuario administrador como fallback
+            NULL
+        );
+        
+        RETURN 0; -- Éxito
+    END TRY
+    BEGIN CATCH
+        -- Capturar error de registro remoto y guardar localmente
+        INSERT INTO dbo.SocaiLogs 
+        (
+            description, postTime, computer, username, trace, 
+            LogTypeId, LogSourceId, LogSeverityId, UserId, TransactionId
+        )
+        VALUES
+        (
+            'Error al registrar en servidor remoto: ' + @Message, 
+            GETDATE(), 
+            @HostName, 
+            @UserName,
+            'Error: ' + ERROR_MESSAGE() + ', Mensaje original: ' + ISNULL(@AdditionalInfo, 'N/A'),
+            3, -- Tipo: Error
+            5, -- Fuente: Remote Logging
+            3, -- Severidad: Alta
+            1, -- Usuario admin
+            NULL
+        );
+        
+        RETURN ERROR_NUMBER(); -- Devolver código de error
+    END CATCH;
+END;
+GO
+
+-- Ejemplo de uso del SP genérico en cualquier otro procedimiento del sistema
+CREATE PROCEDURE dbo.sp_EjemploUsoBitacoraRemota
+    @UserId INT,
+    @Operacion VARCHAR(50)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    
+    BEGIN TRY
+        -- Lógica normal del procedimiento
+        DECLARE @Resultado VARCHAR(100) = 'Operación ' + @Operacion + ' completada para usuario ' + CAST(@UserId AS VARCHAR);
+        
+        -- Registrar el éxito en bitácora remota
+        EXEC dbo.sp_LogToRemoteServer 
+            @LogLevel = 'Information',
+            @Message = @Resultado,
+            @RelatedEntityId = @UserId,
+            @RelatedEntityType = 'Usuario';
+            
+        -- Devolver resultado
+        SELECT @Resultado AS Resultado;
+    END TRY
+    BEGIN CATCH
+        -- Registrar el error en bitácora remota
+        EXEC dbo.sp_LogToRemoteServer 
+            @LogLevel = 'Error',
+            @Message =  @Operacion,
+            @AdditionalInfo = ERROR_MESSAGE,
+            @RelatedEntityId = @UserId,
+            @RelatedEntityType = 'Usuario',
+            @ErrorNumber = ERROR_NUMBER,
+            @ErrorLine = ERROR_LINE,
+            @ErrorState = ERROR_STATE,
+            @ErrorSeverity = ERROR_SEVERITY,
+            @ErrorProcedure = ERROR_PROCEDURE;
+            
+        -- Re-lanzar el error
+        THROW;
+    END CATCH;
+END;
+GO
+
