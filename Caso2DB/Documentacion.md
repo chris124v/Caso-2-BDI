@@ -872,8 +872,6 @@ Scripts & Queries para evaluar el comportamiento de **Caso 2** bajo alta con
 * Ventana‑2 → `EXEC dbo.DL_B`  
 > El cruce SELECT → UPDATE / UPDATE → SELECT provoca el dead‑lock.
 
-
-/* 9.2  ─ creación de los procedimientos */
 IF OBJECT_ID('dbo.DL_A','P') IS NOT NULL DROP PROCEDURE dbo.DL_A;
 GO
 CREATE PROCEDURE dbo.DL_A AS
