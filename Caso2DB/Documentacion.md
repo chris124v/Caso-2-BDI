@@ -769,6 +769,89 @@ Esta seria una tabla intermdia entre las suscripciones y los horarios en donde s
 
 
 
+#### 7. Mantenimiento de la Seguridad  
+*(corresponde al script `Scripts&Queries Mantenimiento de Seguridad.sql`)*
+
+---
+
+#### 7.1 Logins (en *master*)
+
+| Login | Propósito | Contraseña demo ¹ |
+|-------|-----------|-------------------|
+| `login_sinAcceso` | Cuenta bloqueada para pruebas negativas | `NoP@ss_demo1!` |
+| `login_read` | Cuenta de solo‑lectura de catálogos | `Read0nly_demo1!` |
+| `login_api` | Servicio Back‑End / API | `ApiP@ss_demo1!` |
+
+¹ Las contraseñas se incluyen **solo para entorno académico**  
+  y deben rotarse en producción.
+
+---
+
+#### 7.2 Usuarios (en **Caso2**)
+
+| Usuario BD | Login asociado | Uso |
+|------------|----------------|-----|
+| `usr_noAccess` | `login_sinAcceso` | Asegurar que *DENY CONNECT* realmente impide el acceso |
+| `usr_readOnly` | `login_read` | Lectura de tablas de catálogo |
+| `usr_backEnd` | `login_api` | Invocar SP protegidos desde la API |
+
+---
+
+#### 7.3 Roles y membresías
+
+| Rol | Objetivo | Miembros |
+|-----|----------|----------|
+| `rl_catalogRead` | Lectura estricta de catálogos de la aplicación | `usr_readOnly` |
+| `rl_backendApi`  | Operaciones permitidas al servicio back‑end | `usr_backEnd` |
+
+---
+
+#### 7.4 Modelo de Permisos
+
+| Principal | `CONNECT` | `SELECT` catálogos | `SELECT/CRUD` liquidaciones | `EXEC` SP de pagos |
+|-----------|-----------|--------------------|-----------------------------|--------------------|
+| `usr_noAccess` | ❌ | ❌ | ❌ | ❌ |
+| `usr_readOnly` | ✔️ | ✔️ (`SocaiSubscriptions`,`SocaiServiceTypes`) | ❌ | ❌ |
+| `usr_backEnd`  | ✔️ | ❌ | ❌ (DENY directo) | ✔️ (`SocaiSP_PagarProveedorMesPasado`, `SocaiSP_GetToken`) |
+
+---
+
+#### 7.5 Row‑Level Security (RLS)
+
+| Elemento | Detalle |
+|----------|---------|
+| **Función inline** | `dbo.fn_rls_Comercio(@CommerceId INT)` compara el parámetro con `SESSION_CONTEXT('ComId')`. |
+| **Política** | `Policy_Comercio`; **FILTER** sobre `SocaiCommerces` y `SocaiCommerceSettlement`. |
+| **Uso** | Antes de un `SELECT` el back‑end establece<br>`EXEC sp_set_session_context N'ComId', @idComercio;` |
+
+---
+
+#### 7.6 Infra‑estructura Criptográfica
+
+| Objeto | Tipo / Algoritmo | Protegido por |
+|--------|------------------|---------------|
+| `##MS_DatabaseMasterKey##` | Master Key | Contraseña `MK$Caso2_demo!` |
+| `CertPayments` | Certificado X.509 | — |
+| `AK_Payments` | Llave asimétrica RSA‑3072 | — |
+| `SK_PayToken` | Llave simétrica AES‑256 | `CertPayments`, `AK_Payments` |
+
+Los *chargeToken* de la tabla `SocaiPayments.chargeToken` se cifran con
+`ENCRYPTBYKEY(KEY_GUID('SK_PayToken'), @valor)`.
+
+---
+
+#### 7.7 Procedimiento seguro de descifrado
+
+```sql
+CREATE PROCEDURE dbo.SocaiSP_GetToken @PaymentId int AS
+BEGIN
+    OPEN SYMMETRIC KEY SK_PayToken DECRYPTION BY CERTIFICATE CertPayments;
+    SELECT  p.PaymentId,
+            CONVERT(varchar(250),DECRYPTBYKEY(p.chargeToken)) AS PlainToken
+    FROM    dbo.SocaiPayments AS p
+    WHERE   p.PaymentId = @PaymentId;
+    CLOSE SYMMETRIC KEY SK_PayToken;
+END
 
 
 
