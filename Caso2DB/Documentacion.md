@@ -3,7 +3,7 @@
 ## Integrantes
 * Santiago Calderón Zúñiga 
 * Adrián Josué Barquero Sánchez
-* Christopher Daniel Vargas Villalta
+* Christopher Daniel Vargas Villalta, 2024108443
 
 ## 1. Introduccion
 Este documento tiene el objetivo de explicar las relaciones y el modelo en general de la base de datos de la Empresa Soltura y sus diferentes gestiones. En esta documentacion explicaremos y detallaremos las relaciones entre las tablas y los objetivos que cumplen para maximizar la eficiencia de soltura y que propiamente tenga un buen funcionamiento. 
